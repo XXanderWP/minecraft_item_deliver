@@ -1,0 +1,5 @@
+{
+  "config.jade.plugin_logisticsports.access_port": "Access Port",
+  "block.logisticsports.access_port": "Access Port",
+  "block.logisticsports.output_port": "Output Port"
+}

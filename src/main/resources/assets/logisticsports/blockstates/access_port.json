@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north,status=0": { "model": "logisticsports:block/access_port" },
+    "facing=north,status=1": { "model": "logisticsports:block/access_port_success" },
+    "facing=north,status=2": { "model": "logisticsports:block/access_port_fail" },
+    "facing=south,status=0": { "model": "logisticsports:block/access_port", "y": 180 },
+    "facing=south,status=1": { "model": "logisticsports:block/access_port_success", "y": 180 },
+    "facing=south,status=2": { "model": "logisticsports:block/access_port_fail", "y": 180 },
+    "facing=east,status=0": { "model": "logisticsports:block/access_port", "y": 90 },
+    "facing=east,status=1": { "model": "logisticsports:block/access_port_success", "y": 90 },
+    "facing=east,status=2": { "model": "logisticsports:block/access_port_fail", "y": 90 },
+    "facing=west,status=0": { "model": "logisticsports:block/access_port", "y": 270 },
+    "facing=west,status=1": { "model": "logisticsports:block/access_port_success", "y": 270 },
+    "facing=west,status=2": { "model": "logisticsports:block/access_port_fail", "y": 270 }
+  }
+}

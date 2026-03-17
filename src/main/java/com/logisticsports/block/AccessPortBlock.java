@@ -1,0 +1,117 @@
+package com.logisticsports.block;
+
+import com.logisticsports.blockentity.AccessPortBlockEntity;
+import com.logisticsports.registry.ModRegistry;
+import com.simibubi.create.AllSoundEvents;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import org.jetbrains.annotations.Nullable;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.network.NetworkHooks;
+
+public class AccessPortBlock extends BaseEntityBlock {
+
+    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        // Блок смотрит на игрока (противоположная сторона от взгляда)
+        return this.defaultBlockState()
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(STATUS, 0);
+    }
+
+    public AccessPortBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(this.stateDefinition.any().setValue(STATUS, 0));
+    }
+
+    public static final IntegerProperty STATUS = IntegerProperty.create("status", 0, 2);
+
+
+    @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        level.setBlock(pos, state.setValue(STATUS, 0), 3);
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING, STATUS); // добавь FACING рядом со STATUS
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new AccessPortBlockEntity(pos, state);
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
+    }
+
+    private static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> WRENCH_TAG =
+            net.minecraft.tags.ItemTags.create(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("forge", "tools/wrench"));
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos,
+                                 Player player, InteractionHand hand, BlockHitResult hit) {
+        ItemStack heldItem = player.getItemInHand(hand);
+        if (heldItem.is(WRENCH_TAG)) {
+            if (!level.isClientSide) {
+                if(player.isShiftKeyDown()) {
+                    level.destroyBlock(pos, true);
+                    AllSoundEvents.WRENCH_REMOVE.playOnServer(level, pos);
+                } else {
+                    Direction newFacing = state.getValue(FACING).getClockWise();
+                    level.setBlock(pos, state.setValue(FACING, newFacing), 3);
+                    AllSoundEvents.WRENCH_ROTATE.playOnServer(level, pos);
+                }
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        if (level.isClientSide) return InteractionResult.SUCCESS;
+
+        BlockEntity be = level.getBlockEntity(pos);
+        if (!(be instanceof AccessPortBlockEntity port)) return InteractionResult.PASS;
+
+        if (player.isShiftKeyDown()) {
+            port.refreshAvailableCache();
+            NetworkHooks.openScreen((ServerPlayer) player, port, buf -> buf.writeBlockPos(pos));
+        } else {
+            port.placeOrder(player, 1);
+        }
+
+        return InteractionResult.CONSUME;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+                                                                  BlockEntityType<T> type) {
+        return createTickerHelper(type, ModRegistry.ACCESS_PORT_BE.get(),
+                AccessPortBlockEntity::tick);
+    }
+}

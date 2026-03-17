@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "logisticsports:block/output_port" },
+    "facing=south": { "model": "logisticsports:block/output_port", "y": 180 },
+    "facing=east":  { "model": "logisticsports:block/output_port", "y": 90 },
+    "facing=west":  { "model": "logisticsports:block/output_port", "y": 270 }
+  }
+}

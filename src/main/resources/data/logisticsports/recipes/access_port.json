@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "RRR",
+    "RAR",
+    "RRR"
+  ],
+  "key": {
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "A": {
+      "item": "create:redstone_requester"
+    }
+  },
+  "result": {
+    "item": "logisticsports:access_port",
+    "count": 1
+  }
+}

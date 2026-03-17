@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "logisticsports:access_port",
+    "logisticsports:output_port"
+  ]
+}
