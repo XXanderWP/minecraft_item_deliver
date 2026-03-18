@@ -58,9 +58,19 @@ public class InteractionHandler {
                 if (be instanceof AccessPortBlockEntity || be instanceof OutputPortBlockEntity) {
                     CompoundTag tag = be.saveWithFullMetadata();
                     drop.getOrCreateTag().put("BlockEntityTag", tag);
+
+                    // Очистка инвентаря перед удалением, чтобы не выпадало в мир
+                    if (be instanceof AccessPortBlockEntity ap) {
+                        ap.recipe.clear();
+                        ap.indicator = ItemStack.EMPTY;
+                    } else if (be instanceof OutputPortBlockEntity op) {
+//                        for (int i = 0; i < op.getInventory().getSlots(); i++) {
+//                            op.getInventory().setStackInSlot(i, ItemStack.EMPTY);
+//                        }
+                    }
                 }
 
-                level.destroyBlock(pos, false);
+                level.destroyBlock(pos, true);
 
                 if (!player.getInventory().add(drop)) {
                     player.drop(drop, false);
