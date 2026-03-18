@@ -138,7 +138,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         int listY = y + 24;
 
         if (grouped.isEmpty()) {
-            g.drawString(font, Component.translatable("block.logisticsports.recipe_is_empty"), x + 8, y + 30, 0xFF888888, false);
+            g.drawString(font, Component.translatable("config.logisticsports.recipe_is_empty"), x + 8, y + 30, 0xFF888888, false);
         } else {
             for (int i = 0; i < grouped.size(); i++) {
                 var stack = grouped.get(i);
