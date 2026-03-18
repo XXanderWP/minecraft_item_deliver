@@ -19,6 +19,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -98,7 +99,8 @@ public class InteractionHandler {
                 // Установить частоту в предмет
                 CompoundTag beTag = stack.getOrCreateTagElement("BlockEntityTag");
                 beTag.putInt("frequency", worldFreq);
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Частота скопирована в предмет: " + worldFreq));
+                player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", 
+                        Component.translatable("config.logisticsports.action.freq_copied", worldFreq)));
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
             } else if (worldFreq == 0 && handFreq != 0) {
@@ -107,7 +109,8 @@ public class InteractionHandler {
                 else if (worldBe instanceof OutputPortBlockEntity op) op.frequency = handFreq;
                 worldBe.setChanged();
                 level.sendBlockUpdated(pos, state, state, 3);
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Частота установлена в блок: " + handFreq));
+                player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", 
+                        Component.translatable("config.logisticsports.action.freq_set", handFreq)));
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
             } else if (worldFreq == 0 && handFreq == 0) {
@@ -121,7 +124,8 @@ public class InteractionHandler {
                 CompoundTag beTag = stack.getOrCreateTagElement("BlockEntityTag");
                 beTag.putInt("frequency", newFreq);
 
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Новая частота синхронизирована: " + newFreq));
+                player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", 
+                        Component.translatable("config.logisticsports.action.freq_synced", newFreq)));
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
             } else {
@@ -130,7 +134,8 @@ public class InteractionHandler {
                 else if (worldBe instanceof OutputPortBlockEntity op) op.frequency = handFreq;
                 worldBe.setChanged();
                 level.sendBlockUpdated(pos, state, state, 3);
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Частота блока обновлена из предмета: " + handFreq));
+                player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", 
+                        Component.translatable("config.logisticsports.action.freq_updated", handFreq)));
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
             }
