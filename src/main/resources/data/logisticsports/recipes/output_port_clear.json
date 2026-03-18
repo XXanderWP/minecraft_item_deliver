@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "logisticsports:output_port"
+    }
+  ],
+  "result": {
+    "item": "logisticsports:output_port",
+    "count": 1
+  }
+}
