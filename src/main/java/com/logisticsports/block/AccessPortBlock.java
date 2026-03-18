@@ -1,12 +1,14 @@
 package com.logisticsports.block;
 
 import com.logisticsports.blockentity.AccessPortBlockEntity;
+import com.logisticsports.interract.InteractionHandler;
 import com.logisticsports.registry.ModRegistry;
 import com.simibubi.create.AllSoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -75,21 +77,11 @@ public class AccessPortBlock extends BaseEntityBlock {
             net.minecraft.tags.ItemTags.create(
                     net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("forge", "tools/wrench"));
 
+
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos,
                                  Player player, InteractionHand hand, BlockHitResult hit) {
-        ItemStack heldItem = player.getItemInHand(hand);
-        if (heldItem.is(WRENCH_TAG)) {
-            if (!level.isClientSide) {
-                if(player.isShiftKeyDown()) {
-                    level.destroyBlock(pos, true);
-                    AllSoundEvents.WRENCH_REMOVE.playOnServer(level, pos);
-                } else {
-                    Direction newFacing = state.getValue(FACING).getClockWise();
-                    level.setBlock(pos, state.setValue(FACING, newFacing), 3);
-                    AllSoundEvents.WRENCH_ROTATE.playOnServer(level, pos);
-                }
-            }
+        if (InteractionHandler.AllowWrenchInterract(player)) {
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
         if (level.isClientSide) return InteractionResult.SUCCESS;
@@ -105,6 +97,24 @@ public class AccessPortBlock extends BaseEntityBlock {
         }
 
         return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof AccessPortBlockEntity port) {
+                for (ItemStack stack : port.recipe) {
+                    if (!stack.isEmpty()) {
+                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                    }
+                }
+                if (!port.indicator.isEmpty()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), port.indicator);
+                }
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
     }
 
     @Nullable
