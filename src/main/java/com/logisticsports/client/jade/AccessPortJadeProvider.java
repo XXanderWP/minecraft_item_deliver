@@ -25,21 +25,20 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
         if (!(accessor.getBlockEntity() instanceof AccessPortBlockEntity be)) return;
 
         // Частота
-        tooltip.add(Component.literal("§7Частота: §f" + be.frequency));
+        tooltip.add(Component.translatable("config.logisticsports.frequency_tooltip", be.frequency));
 
         // Индикатор (результат)
         if (!be.indicator.isEmpty()) {
             IElementHelper helper = IElementHelper.get();
             IElement icon = helper.item(be.indicator, 1f);
-            tooltip.add(Component.literal("§7Результат: §f"
-                    + be.indicator.getHoverName().getString()
+            tooltip.add(Component.translatable("config.logisticsports.result_tooltip", be.indicator.getHoverName().getString()
                     + (be.indicator.getCount() > 1 ? " x" + be.indicator.getCount() : "")));
         }
 
         // Рецепт
         List<ItemStack> grouped = getGrouped(be);
         if (!grouped.isEmpty()) {
-            tooltip.add(Component.literal("§7Требуется:"));
+            tooltip.add(Component.translatable("config.logisticsports.require_tooltip"));
             for (ItemStack stack : grouped) {
                 int avail = be.getAvailableCount(stack);
                 int needed = stack.getCount();

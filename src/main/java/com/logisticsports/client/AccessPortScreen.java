@@ -40,13 +40,13 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
         // Кнопка настроек — расширенная
         addRenderableWidget(Button.builder(
-                Component.literal("Настройки"),
+                Component.translatable("config.logisticsports.settings"),
                 btn -> openSettings()
         ).pos(leftPos + BG_WIDTH - 68, topPos + 5).size(62, 14).build());
 
         // Кнопка заказать
         addRenderableWidget(Button.builder(
-                Component.literal("Заказать"),
+                Component.translatable("config.logisticsports.order"),
                 btn -> placeOrder()
         ).pos(leftPos + BG_WIDTH - 82, topPos + BG_HEIGHT - 22).size(76, 14).build());
     }
@@ -124,7 +124,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         g.fill(x + BG_WIDTH - 1, y, x + BG_WIDTH, y + BG_HEIGHT, 0xFF444444);
 
         // Заголовок
-        g.drawString(font, "Порт Доступа", x + 8, y + 8, 0xFF222222, false);
+        g.drawString(font, Component.translatable("block.logisticsports.access_port"), x + 8, y + 8, 0xFF222222, false);
         g.fill(x + 4, y + 18, x + BG_WIDTH - 4, y + 19, 0xFF888888);
 
         // Список предметов
@@ -138,7 +138,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         int listY = y + 24;
 
         if (grouped.isEmpty()) {
-            g.drawString(font, "Рецепт не задан", x + 8, y + 30, 0xFF888888, false);
+            g.drawString(font, Component.translatable("block.logisticsports.recipe_is_empty"), x + 8, y + 30, 0xFF888888, false);
         } else {
             for (int i = 0; i < grouped.size(); i++) {
                 var stack = grouped.get(i);
@@ -173,14 +173,14 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             g.renderItem(ind, x + 8, indY + 3);
             String indName = ind.getHoverName().getString();
             if (indName.length() > 14) indName = indName.substring(0, 12) + "..";
-            g.drawString(font, "§6Результат: " + indName +
-                            (ind.getCount() > 1 ? " x" + ind.getCount() : ""),
+            g.drawString(font, Component.translatable("config.logisticsports.result", indName +
+                            (ind.getCount() > 1 ? " x" + ind.getCount() : "")),
                     x + 28, indY + 7, 0xFF222222, false);
         }
 
         // Нижняя панель
         g.fill(x + 4, y + BG_HEIGHT - 30, x + BG_WIDTH - 4, y + BG_HEIGHT - 29, 0xFF888888);
-        g.drawString(font, "Партий:", x + 8, y + BG_HEIGHT - 22, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.count"), x + 8, y + BG_HEIGHT - 22, 0xFF222222, false);
     }
 
     @Override

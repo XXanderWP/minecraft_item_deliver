@@ -6,6 +6,7 @@ import com.logisticsports.registry.ModRegistry;
 import com.simibubi.create.AllSoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Containers;
@@ -124,7 +125,7 @@ public class AccessPortBlock extends BaseEntityBlock {
         if (tag != null && tag.contains("BlockEntityTag")) {
             net.minecraft.nbt.CompoundTag beTag = tag.getCompound("BlockEntityTag");
             int freq = beTag.getInt("frequency");
-            tooltip.add(net.minecraft.network.chat.Component.literal("§7Частота: §b" + freq));
+            tooltip.add(Component.translatable("config.logisticsports.frequency_tooltip2", freq));
 
             if (beTag.contains("Items")) {
                 net.minecraft.core.NonNullList<ItemStack> recipe = net.minecraft.core.NonNullList.withSize(9, ItemStack.EMPTY);
@@ -133,7 +134,7 @@ public class AccessPortBlock extends BaseEntityBlock {
                 for (ItemStack s : recipe) {
                     if (!s.isEmpty()) {
                         if (!hasRecipe) {
-                            tooltip.add(net.minecraft.network.chat.Component.literal("§7Рецепт:"));
+                            tooltip.add(Component.translatable("config.logisticsports.require"));
                             hasRecipe = true;
                         }
                         tooltip.add(net.minecraft.network.chat.Component.literal("§8 - ").append(s.getHoverName()).append(net.minecraft.network.chat.Component.literal(" x" + s.getCount())));
@@ -143,7 +144,7 @@ public class AccessPortBlock extends BaseEntityBlock {
             if (beTag.contains("indicator")) {
                 ItemStack indicator = ItemStack.of(beTag.getCompound("indicator"));
                 if (!indicator.isEmpty()) {
-                    tooltip.add(net.minecraft.network.chat.Component.literal("§7Выход: ").append(indicator.getHoverName()));
+                    tooltip.add(net.minecraft.network.chat.Component.translatable("config.logisticsports.output").append(indicator.getHoverName()));
                 }
             }
         }

@@ -49,7 +49,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         // Собираем список нужных предметов с учётом партий
         List<ItemStack> needed = buildOrderList(batches);
         if (needed.isEmpty()) {
-            player.sendSystemMessage(Component.literal("§e[LP] Рецепт пуст"));
+            player.sendSystemMessage(Component.translatable("config.logisticsports.action.warning_chat", Component.translatable("config.logisticsports.recipe_is_empty")));
             setStatus(2); // провал
             return;
         }
@@ -57,7 +57,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         // Находим все Порты Выдачи на той же частоте
         List<OutputPortBlockEntity> ports = findOutputPorts();
         if (ports.isEmpty()) {
-            player.sendSystemMessage(Component.literal("§c[LP] Нет портов выдачи на частоте " + frequency));
+            player.sendSystemMessage(
+                    Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_output", frequency))
+            );
             setStatus(2); // провал
             return;
         }
@@ -77,7 +79,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         if (requireAll && !missing.isEmpty()) {
-            player.sendSystemMessage(Component.literal("§c[LP] Не хватает:"));
+            player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.missing")));
             for (String m : missing) {
                 player.sendSystemMessage(Component.literal("§c  - " + m));
             }
@@ -87,14 +89,14 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         // Проверяем место в портах выдачи
         if (!hasEnoughSpace(ports, needed)) {
-            player.sendSystemMessage(Component.literal("§c[LP] Недостаточно места в портах выдачи"));
+            player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_space")));
             setStatus(2); // провал
             return;
         }
 
         // Перемещаем предметы
         executeOrder(ports, needed, available);
-        player.sendSystemMessage(Component.literal("§a[LP] Заказ выполнен"));
+        player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
         setStatus(1); // успех
     }
 
@@ -285,7 +287,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     @Override
     public Component getDisplayName() {
-        return Component.literal("Порт Доступа");
+        return Component.translatable("block.logisticsports.access_port");
     }
 
     @Nullable

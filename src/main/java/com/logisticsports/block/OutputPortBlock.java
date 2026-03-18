@@ -6,6 +6,7 @@ import com.logisticsports.registry.ModRegistry;
 import com.simibubi.create.AllSoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -59,8 +60,7 @@ public class OutputPortBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof OutputPortBlockEntity port) {
             port.giveAllToPlayer(player);
-            player.sendSystemMessage(
-                    net.minecraft.network.chat.Component.literal("[LP] Содержимое порта выдано"));
+            player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.returned")));
         }
         return InteractionResult.CONSUME;
     }
@@ -87,13 +87,13 @@ public class OutputPortBlock extends BaseEntityBlock {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.BlockGetter level, java.util.List<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.BlockGetter level, java.util.List<Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
         net.minecraft.nbt.CompoundTag tag = stack.getTag();
         if (tag != null && tag.contains("BlockEntityTag")) {
             net.minecraft.nbt.CompoundTag beTag = tag.getCompound("BlockEntityTag");
             int freq = beTag.getInt("frequency");
-            tooltip.add(net.minecraft.network.chat.Component.literal("§7Частота: §b" + freq));
+            tooltip.add(Component.translatable("config.logisticsports.frequency_tooltip2", freq));
         }
     }
 

@@ -50,11 +50,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
         // Кнопка режима нехватки
         addRenderableWidget(Button.builder(
-                Component.literal(menu.blockEntity.requireAll ? "Только если всё" : "Выдать что есть"),
+                Component.translatable(menu.blockEntity.requireAll ? "config.logisticsports.require.all" : "config.logisticsports.require.notall"),
                 btn -> {
                     boolean newVal = !menu.blockEntity.requireAll;
                     menu.blockEntity.requireAll = newVal;
-                    btn.setMessage(Component.literal(newVal ? "Только если всё" : "Выдать что есть"));
+                    btn.setMessage(Component.translatable(newVal ? "config.logisticsports.require.all" : "config.logisticsports.require.notall"));
                     com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
                             new com.logisticsports.network.PacketUpdateSettings(
                                     menu.blockEntity.getBlockPos(), newVal));
@@ -63,11 +63,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
         // Кнопка упаковки посылки
         packageModeButton = Button.builder(
-                Component.literal(menu.blockEntity.packageMode ? "Да" : "Нет"),
+                Component.translatable(menu.blockEntity.packageMode ? "config.logisticsports.yes" : "config.logisticsports.no"),
                 btn -> {
                     boolean newVal = !menu.blockEntity.packageMode;
                     menu.blockEntity.packageMode = newVal;
-                    btn.setMessage(Component.literal(newVal ? "Да" : "Нет"));
+                    btn.setMessage(Component.translatable(newVal ? "config.logisticsports.yes" : "config.logisticsports.no"));
                     updateRecipientFieldVisibility();
                     com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
                             new com.logisticsports.network.PacketUpdatePackageMode(
@@ -135,11 +135,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         g.fill(x + BG_WIDTH - 1, y, x + BG_WIDTH, y + BG_HEIGHT, 0xFF444444);
 
         // Заголовок
-        g.drawString(font, "Настройки", x + 26, y + 8, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.settings"), x + 26, y + 8, 0xFF222222, false);
         g.fill(x + 4, y + 18, x + BG_WIDTH - 4, y + 19, 0xFF888888);
 
         // Список заказа
-        g.drawString(font, "Список заказа:", x + 8, y + 22, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.order_list"), x + 8, y + 22, 0xFF222222, false);
         for (int i = 0; i < 9; i++) {
             int sx = x + 7 + i * 18;
             int sy = y + 30;
@@ -148,30 +148,30 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         }
 
         // Индикатор
-        g.drawString(font, "Индикатор:", x + BG_WIDTH - 80, y + 8, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.indicator"), x + BG_WIDTH - 80, y + 8, 0xFF222222, false);
         int ix = x + BG_WIDTH - 26;
         int iy = y + 3;
         g.fill(ix, iy, ix + 18, iy + 18, 0xFF888888);
         g.fill(ix + 1, iy + 1, ix + 17, iy + 17, 0xFFDDDD55);
 
         // Частота
-        g.drawString(font, "Частота:", x + 8, y + 60, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.frequency_menu"), x + 8, y + 60, 0xFF222222, false);
 
         // При нехватке
-        g.drawString(font, "При нехватке:", x + 8, y + 77, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.shortage"), x + 8, y + 77, 0xFF222222, false);
 
         // Упаковывать посылку
-        g.drawString(font, "Упаковывать посылку:", x + 8, y + 94, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.pack"), x + 8, y + 94, 0xFF222222, false);
 
         // Адрес получателя (только если packageMode)
         if (menu.blockEntity.packageMode) {
-            g.drawString(font, "Адрес получателя посылки:", x + 8, y + 103, 0xFF222222, false);
+            g.drawString(font, Component.translatable("config.logisticsports.recipient"), x + 8, y + 103, 0xFF222222, false);
         }
 
         // Разделитель перед инвентарём — прикреплён к инвентарю
         int invTop = BG_HEIGHT - 18 * 4 - 8;
         g.fill(x + 4, y + invTop - 12, x + BG_WIDTH - 4, y + invTop - 11, 0xFF888888);
-        g.drawString(font, "Инвентарь", x + 8, y + invTop - 9, 0xFF555555, false);
+        g.drawString(font, Component.translatable("config.logisticsports.inventory"), x + 8, y + invTop - 9, 0xFF555555, false);
 
         // Инвентарь
         for (int row = 0; row < 3; row++) {
