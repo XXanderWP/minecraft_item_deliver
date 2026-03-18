@@ -15,18 +15,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from gradle.properties
-        id: get_version
+      - name: Get version info from gradle.properties
+        id: get_info
         run: |
           VERSION=$(grep 'mod_version' gradle.properties | cut -d'=' -f2 | xargs)
+          MC_VERSION=$(grep 'minecraft_version' gradle.properties | cut -d'=' -f2 | xargs | head -n 1)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "MC_VERSION=$MC_VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if release exists
         id: check_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          VERSION="${{ steps.get_info.outputs.VERSION }}"
           if gh release view "$VERSION" > /dev/null 2>&1; then
             echo "Release $VERSION already exists. Skipping."
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -45,6 +47,8 @@ jobs:
       - name: Setup Gradle
         if: steps.check_release.outputs.exists == 'false'
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false # Позволяет обновлять кеш при пуше в main
 
       - name: Build with Gradle
         if: steps.check_release.outputs.exists == 'false'
@@ -55,14 +59,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          # Get the built JAR file, assuming it follows the standard pattern {archivesName}-{version}.jar
-          # archivesName from build.gradle is mod_id, version is mod_version
+          VERSION="${{ steps.get_info.outputs.VERSION }}"
+          MC_VERSION="${{ steps.get_info.outputs.MC_VERSION }}"
+          # Get the built JAR file, assuming it follows the pattern {archivesName}-{minecraft_version}-{version}.jar
+          # archivesName is set to mod_id-minecraft_version in build.gradle
           # Looking into build/libs/ for the non-sources, non-dev JAR
-          JAR_FILE=$(find build/libs/ -name "*-${VERSION}.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" | head -n 1)
+          JAR_FILE=$(find build/libs/ -name "*-${MC_VERSION}-${VERSION}.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" | head -n 1)
           
           if [ -n "$JAR_FILE" ]; then
-            gh release create "$VERSION" "$JAR_FILE" --title "Release $VERSION" --notes "Automated release for version $VERSION"
+            gh release create "$VERSION" "$JAR_FILE" --title "Release $VERSION" --notes "Automated release for version $VERSION (Minecraft $MC_VERSION)"
           else
             echo "JAR file not found!"
             exit 1
