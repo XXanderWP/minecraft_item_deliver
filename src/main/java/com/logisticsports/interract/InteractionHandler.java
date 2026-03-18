@@ -3,6 +3,9 @@ package com.logisticsports.interract;
 import com.logisticsports.LogisticsPorts;
 import com.logisticsports.block.AccessPortBlock;
 import com.logisticsports.block.OutputPortBlock;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import com.logisticsports.blockentity.AccessPortBlockEntity;
 import com.logisticsports.blockentity.OutputPortBlockEntity;
 import com.simibubi.create.AllSoundEvents;
 import net.minecraft.core.BlockPos;
@@ -39,31 +42,95 @@ public class InteractionHandler {
         // Только сервер!
         if (level.isClientSide) return;
 
-        if (!AllowWrenchInterract(player)) return;
         BlockState state = level.getBlockState(pos);
-
         Block block = state.getBlock();
 
         // Проверяем блок
         if (!(block instanceof OutputPortBlock) &&
                 !(block instanceof AccessPortBlock)) return;
 
-        if (player.isShiftKeyDown()) {
+        if (AllowWrenchInterract(player)) {
+            if (player.isShiftKeyDown()) {
+                BlockEntity be = level.getBlockEntity(pos);
+                ItemStack drop = new ItemStack(block.asItem());
 
-            level.destroyBlock(pos, false);
+                if (be instanceof AccessPortBlockEntity || be instanceof OutputPortBlockEntity) {
+                    CompoundTag tag = be.saveWithFullMetadata();
+                    drop.getOrCreateTag().put("BlockEntityTag", tag);
+                }
 
-            ItemStack drop = new ItemStack(block.asItem());
-            if (!player.getInventory().add(drop)) {
-                player.drop(drop, false);
+                level.destroyBlock(pos, false);
+
+                if (!player.getInventory().add(drop)) {
+                    player.drop(drop, false);
+                }
+
+                AllSoundEvents.WRENCH_REMOVE.playOnServer(level, pos);
+
+                // Отменяем всё остальное
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else {
+                if (FaceRotation(level, pos)) {
+                    event.setCanceled(true);
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                }
+            }
+            return;
+        }
+
+        // Логика синхронизации частоты
+        if (!stack.isEmpty() && (stack.getItem() instanceof net.minecraft.world.item.BlockItem bi) &&
+                (bi.getBlock() instanceof AccessPortBlock || bi.getBlock() instanceof OutputPortBlock)) {
+
+            BlockEntity worldBe = level.getBlockEntity(pos);
+            int worldFreq = 0;
+            if (worldBe instanceof AccessPortBlockEntity ap) worldFreq = ap.frequency;
+            else if (worldBe instanceof OutputPortBlockEntity op) worldFreq = op.frequency;
+
+            int handFreq = 0;
+            CompoundTag stackTag = stack.getTag();
+            if (stackTag != null && stackTag.contains("BlockEntityTag")) {
+                handFreq = stackTag.getCompound("BlockEntityTag").getInt("frequency");
             }
 
-            AllSoundEvents.WRENCH_REMOVE.playOnServer(level, pos);
+            if (worldFreq != 0 && handFreq == 0) {
+                // Установить частоту в предмет
+                CompoundTag beTag = stack.getOrCreateTagElement("BlockEntityTag");
+                beTag.putInt("frequency", worldFreq);
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Частота скопирована в предмет: " + worldFreq));
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else if (worldFreq == 0 && handFreq != 0) {
+                // Установить частоту в блок
+                if (worldBe instanceof AccessPortBlockEntity ap) ap.frequency = handFreq;
+                else if (worldBe instanceof OutputPortBlockEntity op) op.frequency = handFreq;
+                worldBe.setChanged();
+                level.sendBlockUpdated(pos, state, state, 3);
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Частота установлена в блок: " + handFreq));
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else if (worldFreq == 0 && handFreq == 0) {
+                // Оба пустые - генерируем случайную
+                int newFreq = 1000 + level.random.nextInt(9000);
+                if (worldBe instanceof AccessPortBlockEntity ap) ap.frequency = newFreq;
+                else if (worldBe instanceof OutputPortBlockEntity op) op.frequency = newFreq;
+                worldBe.setChanged();
+                level.sendBlockUpdated(pos, state, state, 3);
 
-            // Отменяем всё остальное
-            event.setCanceled(true);
-            event.setCancellationResult(InteractionResult.SUCCESS);
-        } else {
-            if(FaceRotation(level, pos)) {
+                CompoundTag beTag = stack.getOrCreateTagElement("BlockEntityTag");
+                beTag.putInt("frequency", newFreq);
+
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Новая частота синхронизирована: " + newFreq));
+                event.setCanceled(true);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+            } else {
+                // У обоих есть - тот что на земле получает частоту того что в руке
+                if (worldBe instanceof AccessPortBlockEntity ap) ap.frequency = handFreq;
+                else if (worldBe instanceof OutputPortBlockEntity op) op.frequency = handFreq;
+                worldBe.setChanged();
+                level.sendBlockUpdated(pos, state, state, 3);
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[LP] Частота блока обновлена из предмета: " + handFreq));
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
             }

@@ -117,6 +117,38 @@ public class AccessPortBlock extends BaseEntityBlock {
         }
     }
 
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.BlockGetter level, java.util.List<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
+        super.appendHoverText(stack, level, tooltip, flag);
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        if (tag != null && tag.contains("BlockEntityTag")) {
+            net.minecraft.nbt.CompoundTag beTag = tag.getCompound("BlockEntityTag");
+            int freq = beTag.getInt("frequency");
+            tooltip.add(net.minecraft.network.chat.Component.literal("§7Частота: §b" + freq));
+
+            if (beTag.contains("Items")) {
+                net.minecraft.core.NonNullList<ItemStack> recipe = net.minecraft.core.NonNullList.withSize(9, ItemStack.EMPTY);
+                net.minecraft.world.ContainerHelper.loadAllItems(beTag, recipe);
+                boolean hasRecipe = false;
+                for (ItemStack s : recipe) {
+                    if (!s.isEmpty()) {
+                        if (!hasRecipe) {
+                            tooltip.add(net.minecraft.network.chat.Component.literal("§7Рецепт:"));
+                            hasRecipe = true;
+                        }
+                        tooltip.add(net.minecraft.network.chat.Component.literal("§8 - ").append(s.getHoverName()).append(net.minecraft.network.chat.Component.literal(" x" + s.getCount())));
+                    }
+                }
+            }
+            if (beTag.contains("indicator")) {
+                ItemStack indicator = ItemStack.of(beTag.getCompound("indicator"));
+                if (!indicator.isEmpty()) {
+                    tooltip.add(net.minecraft.network.chat.Component.literal("§7Выход: ").append(indicator.getHoverName()));
+                }
+            }
+        }
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,

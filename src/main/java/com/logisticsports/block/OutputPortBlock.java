@@ -87,6 +87,17 @@ public class OutputPortBlock extends BaseEntityBlock {
     }
 
     @Override
+    public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.BlockGetter level, java.util.List<net.minecraft.network.chat.Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
+        super.appendHoverText(stack, level, tooltip, flag);
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        if (tag != null && tag.contains("BlockEntityTag")) {
+            net.minecraft.nbt.CompoundTag beTag = tag.getCompound("BlockEntityTag");
+            int freq = beTag.getInt("frequency");
+            tooltip.add(net.minecraft.network.chat.Component.literal("§7Частота: §b" + freq));
+        }
+    }
+
+    @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return this.defaultBlockState()
                 .setValue(FACING, context.getHorizontalDirection().getOpposite());
