@@ -4,6 +4,7 @@ import com.logisticsports.blockentity.OutputPortBlockEntity;
 import com.logisticsports.interract.InteractionHandler;
 import com.logisticsports.registry.ModRegistry;
 import com.simibubi.create.AllSoundEvents;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -89,6 +90,16 @@ public class OutputPortBlock extends BaseEntityBlock {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable net.minecraft.world.level.BlockGetter level, java.util.List<Component> tooltip, net.minecraft.world.item.TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
+
+        if (Screen.hasShiftDown()) {
+            String desc = Component.translatable("config.logisticsports.tooltip.output_port.desc").getString();
+            for (String line : desc.split("\n")) {
+                tooltip.add(Component.literal(line));
+            }
+        } else {
+            tooltip.add(Component.translatable("config.logisticsports.tooltip.shift_hint"));
+        }
+
         net.minecraft.nbt.CompoundTag tag = stack.getTag();
         if (tag != null && tag.contains("BlockEntityTag")) {
             net.minecraft.nbt.CompoundTag beTag = tag.getCompound("BlockEntityTag");
