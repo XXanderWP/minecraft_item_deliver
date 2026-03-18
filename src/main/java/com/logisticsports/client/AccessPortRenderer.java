@@ -59,6 +59,10 @@ public class AccessPortRenderer implements BlockEntityRenderer<AccessPortBlockEn
             // Масштабируем предмет
             poseStack.scale(0.4f, 0.4f, 0.4f);
 
+            // Вращение по горизонтали (вокруг вертикальной оси предмета)
+            float time = (level.getGameTime() + partialTick) * 3.0f;
+            poseStack.mulPose(Axis.YP.rotationDegrees(time));
+
             itemRenderer.renderStatic(
                     indicator,
                     net.minecraft.world.item.ItemDisplayContext.FIXED,
