@@ -61,14 +61,20 @@ jobs:
         run: |
           VERSION="${{ steps.get_info.outputs.VERSION }}"
           MC_VERSION="${{ steps.get_info.outputs.MC_VERSION }}"
+          echo "Debug: VERSION=$VERSION, MC_VERSION=$MC_VERSION"
+          ls -R build/libs/
           # Get the built JAR file, assuming it follows the pattern {archivesName}-{minecraft_version}-{version}.jar
           # archivesName is set to mod_id-minecraft_version in build.gradle
           # Looking into build/libs/ for the non-sources, non-dev JAR
-          JAR_FILE=$(find build/libs/ -name "*-${MC_VERSION}-${VERSION}.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" | head -n 1)
+          JAR_FILE=$(find build/libs/ -maxdepth 1 -name "*-${MC_VERSION}-${VERSION}.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" ! -name "*-all.jar" | head -n 1)
           
+          if [ -z "$JAR_FILE" ]; then
+             JAR_FILE=$(find build/libs/ -maxdepth 1 -name "*${VERSION}.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" ! -name "*-all.jar" | head -n 1)
+          fi
+
           if [ -n "$JAR_FILE" ]; then
             gh release create "$VERSION" "$JAR_FILE" --title "Release $VERSION" --notes "Automated release for version $VERSION (Minecraft $MC_VERSION)"
           else
-            echo "JAR file not found!"
+            echo "JAR file not found in build/libs/!"
             exit 1
           fi
