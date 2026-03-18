@@ -80,7 +80,7 @@ public class InteractionHandler {
         }
 
         // Логика синхронизации частоты
-        if (!stack.isEmpty() && (stack.getItem() instanceof net.minecraft.world.item.BlockItem bi) &&
+        if (!player.isShiftKeyDown() && !stack.isEmpty() && (stack.getItem() instanceof net.minecraft.world.item.BlockItem bi) &&
                 (bi.getBlock() instanceof AccessPortBlock || bi.getBlock() instanceof OutputPortBlock)) {
 
             BlockEntity worldBe = level.getBlockEntity(pos);
