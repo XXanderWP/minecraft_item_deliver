@@ -21,6 +21,10 @@ import com.logisticsports.menu.AccessPortMenu;
 import com.logisticsports.blockentity.OutputPortBlockEntity;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.IItemHandler;
 import java.util.*;
 
 public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
@@ -34,6 +38,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public int frequency = 0;
     // Поведение при нехватке: true = только если всё есть, false = выдавать что есть
     public boolean requireAll = true;
+    public String getAccessPortId() {
+        return worldPosition.getX() + "," + worldPosition.getY() + "," + worldPosition.getZ();
+    }
 
     public AccessPortBlockEntity(BlockPos pos, BlockState state) {
         super(ModRegistry.ACCESS_PORT_BE.get(), pos, state);
@@ -62,6 +69,11 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             );
             setStatus(2); // провал
             return;
+        }
+
+        String effectiveRecipient = recipient;
+        if (packageMode && effectiveRecipient.isBlank()) {
+            effectiveRecipient = getAccessPortId();
         }
 
         // Проверяем наличие предметов в хранилищах
@@ -95,7 +107,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         // Перемещаем предметы
-        executeOrder(ports, needed, available);
+        executeOrder(ports, needed, available, effectiveRecipient);
         player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
         setStatus(1); // успех
     }
@@ -204,7 +216,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     private void executeOrder(List<OutputPortBlockEntity> ports,
                               List<ItemStack> needed,
-                              Map<ItemStack, Integer> available) {
+                              Map<ItemStack, Integer> available,
+                              String effectiveRecipient) {
         for (OutputPortBlockEntity port : ports) {
 
             if (packageMode) {
@@ -244,9 +257,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                     // Создаём посылку Create
                     ItemStack packageStack = com.simibubi.create.content.logistics.box.PackageItem
                             .containing(collectedForPackage);
-                    if (!recipient.isBlank()) {
+                    if (!effectiveRecipient.isBlank()) {
                         com.simibubi.create.content.logistics.box.PackageItem
-                                .addAddress(packageStack, recipient);
+                                .addAddress(packageStack, effectiveRecipient);
                     }
                     port.insertItem(packageStack);
                 }
@@ -330,6 +343,108 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 availableCache.put(key, cacheTag.getInt(key));
             }
         }
+    }
+
+    private final LazyOptional<IItemHandler> itemHandler = LazyOptional.of(() -> new IItemHandler() {
+        @Override
+        public int getSlots() {
+            return 1;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (level == null || level.isClientSide) return stack;
+            if (stack.isEmpty()) return stack;
+
+            // Проверка подключений
+            BlockEntity topBE = level.getBlockEntity(worldPosition.above());
+            BlockEntity bottomBE = level.getBlockEntity(worldPosition.below());
+
+            if (topBE == null || bottomBE == null) return stack;
+            // Дополнительная проверка, что это не игрок. В Forge игроки не возвращают IItemHandler через getCapability блока.
+            // Но мы должны убедиться, что сверху и снизу именно BlockEntity с инвентарями (или просто BlockEntity).
+            // Требование гласит "не руками", что обычно означает автоматизацию.
+
+            // Проверка фильтрации
+            boolean allowed = false;
+            if (packageMode) {
+                // Если режим упаковки - принимаем только коробку с тем же адресом
+                if (stack.getItem() instanceof com.simibubi.create.content.logistics.box.PackageItem) {
+                    String effectiveRecipient = recipient.isBlank() ? getAccessPortId() : recipient;
+                    CompoundTag tag = stack.getTag();
+                    if (tag != null && tag.contains("Address") && tag.getString("Address").equals(effectiveRecipient)) {
+                        allowed = true;
+                    }
+                }
+            } else {
+                // Если обычный режим - принимаем только вещи из рецепта
+                for (ItemStack recipeStack : recipe) {
+                    if (!recipeStack.isEmpty() && ItemStack.isSameItemSameTags(recipeStack, stack)) {
+                        allowed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!allowed) return stack;
+
+            // Пробуем передать вниз
+            var bottomCap = bottomBE.getCapability(ForgeCapabilities.ITEM_HANDLER, Direction.UP);
+            if (bottomCap.isPresent()) {
+                IItemHandler handler = bottomCap.orElse(null);
+                if (handler != null) {
+                    if (packageMode && stack.getItem() instanceof com.simibubi.create.content.logistics.box.PackageItem) {
+                        if (simulate) return ItemStack.EMPTY;
+
+                        net.minecraftforge.items.ItemStackHandler contents = com.simibubi.create.content.logistics.box.PackageItem.getContents(stack);
+                        for (int i = 0; i < contents.getSlots(); i++) {
+                            ItemStack content = contents.getStackInSlot(i);
+                            if (!content.isEmpty()) {
+                                net.minecraftforge.items.ItemHandlerHelper.insertItem(handler, content, false);
+                            }
+                        }
+                        return ItemStack.EMPTY;
+                    }
+                    return net.minecraftforge.items.ItemHandlerHelper.insertItem(handler, stack, simulate);
+                }
+            }
+
+            return stack;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 64;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return true;
+        }
+    });
+
+    @Override
+    public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
+        if (cap == ForgeCapabilities.ITEM_HANDLER && side == Direction.UP) {
+            return itemHandler.cast();
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        itemHandler.invalidate();
     }
 
     public boolean stillValid(Player player) {
