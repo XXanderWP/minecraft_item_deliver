@@ -33,7 +33,11 @@ public class PacketUpdateRecipeSlot {
             ServerPlayer player = ctx.get().getSender();
             if (player == null) return;
             if (player.containerMenu instanceof AccessPortSettingsMenu menu) {
-                menu.blockEntity.recipe.set(msg.slot, msg.stack);
+                if (msg.slot < 9) {
+                    menu.blockEntity.recipe.set(msg.slot, msg.stack);
+                } else if (msg.slot == 9) {
+                    menu.blockEntity.indicator = msg.stack;
+                }
                 menu.blockEntity.setChanged();
             }
         });

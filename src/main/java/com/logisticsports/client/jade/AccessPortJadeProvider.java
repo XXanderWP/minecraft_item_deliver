@@ -29,7 +29,7 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
         if (!be.indicator.isEmpty()) {
             Component resultLabel = Component.translatable("config.logisticsports.result_tooltip", 
                     Component.empty().append(be.indicator.getHoverName())
-                            .append(be.indicator.getCount() > 1 ? " x" + be.indicator.getCount() : ""));
+                            .append(be.indicator.getCount() > 1 ? Component.literal(" x" + be.indicator.getCount()) : Component.empty()));
             tooltip.add(resultLabel);
         }
 
