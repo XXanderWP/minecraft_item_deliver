@@ -40,5 +40,8 @@
   "config.jade.plugin_logisticsports.access_port": "Порт доступа",
   "config.jade.plugin_logisticsports.output_port": "Порт выдачи",
   "block.logisticsports.access_port": "Порт доступа",
-  "block.logisticsports.output_port": "Порт выдачи"
+  "block.logisticsports.output_port": "Порт выдачи",
+  "config.logisticsports.render_indicator": "Отображать индикатор",
+  "config.logisticsports.rotate_indicator": "Вращать индикатор",
+  "config.logisticsports.render_distance": "Дистанция прорисовки индикатора"
 }

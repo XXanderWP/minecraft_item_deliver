@@ -1,5 +1,6 @@
 package com.logisticsports;
 
+import com.logisticsports.config.ModConfig;
 import com.logisticsports.network.ModNetwork;
 import com.logisticsports.registry.ModRegistry;
 import com.mojang.logging.LogUtils;
@@ -18,6 +19,8 @@ public class LogisticsPorts {
 
     public LogisticsPorts(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
+
+        ModConfig.register(context);
 
         modEventBus.addListener(this::commonSetup);
 

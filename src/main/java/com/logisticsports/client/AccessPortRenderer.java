@@ -2,6 +2,7 @@ package com.logisticsports.client;
 
 import com.logisticsports.block.AccessPortBlock;
 import com.logisticsports.blockentity.AccessPortBlockEntity;
+import com.logisticsports.config.ModConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -20,6 +21,16 @@ public class AccessPortRenderer implements BlockEntityRenderer<AccessPortBlockEn
     @Override
     public void render(AccessPortBlockEntity be, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+
+        if (!ModConfig.CLIENT.renderIndicator.get()) return;
+
+        double distanceSq = Minecraft.getInstance().player.distanceToSqr(
+                be.getBlockPos().getX() + 0.5,
+                be.getBlockPos().getY() + 0.5,
+                be.getBlockPos().getZ() + 0.5
+        );
+        int maxDistance = ModConfig.CLIENT.renderDistance.get();
+        if (distanceSq > maxDistance * maxDistance) return;
 
         ItemStack indicator = be.indicator;
         if (indicator.isEmpty()) return;
@@ -60,8 +71,10 @@ public class AccessPortRenderer implements BlockEntityRenderer<AccessPortBlockEn
             poseStack.scale(0.4f, 0.4f, 0.4f);
 
             // Вращение по горизонтали (вокруг вертикальной оси предмета)
-            float time = (level.getGameTime() + partialTick) * 3.0f;
-            poseStack.mulPose(Axis.YP.rotationDegrees(time));
+            if (ModConfig.CLIENT.rotateIndicator.get()) {
+                float time = (level.getGameTime() + partialTick) * 3.0f;
+                poseStack.mulPose(Axis.YP.rotationDegrees(time));
+            }
 
             itemRenderer.renderStatic(
                     indicator,
