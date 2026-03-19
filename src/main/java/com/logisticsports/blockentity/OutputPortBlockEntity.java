@@ -24,7 +24,7 @@ import java.util.List;
 public class OutputPortBlockEntity extends BlockEntity {
 
     public static final int INVENTORY_SIZE = 20;
-    public static final int PROCESSING_TIME = 20; // 1 second
+    public static final int PROCESSING_TIME = 40; // 2 second
 
     private final ItemStackHandler inventory = new ItemStackHandler(INVENTORY_SIZE) {
         @Override
