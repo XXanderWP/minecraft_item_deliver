@@ -242,8 +242,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         if (!fluid.isEmpty()) {
             boolean isDraggingFluid = !minecraft.player.containerMenu.getCarried().isEmpty() && 
                     net.minecraftforge.fluids.FluidUtil.getFluidContained(minecraft.player.containerMenu.getCarried()).isPresent();
-            int dx = isDraggingFluid ? 1 : 0;
-            int dy = isDraggingFluid ? 1 : 0;
+            int dx = 0;
+            int dy = 0;
             renderFluid(g, fluid, fx + 1 + dx, fy + 1 + dy);
         }
 

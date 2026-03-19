@@ -78,8 +78,8 @@ public class JeiIntegration implements IModPlugin {
                         }
 
                         // Добавляем слот жидкости (виртуальный)
-                        int fx = screen.getGuiLeft() + 8 + 9 * 18 + 4;
-                        int fy = screen.getGuiTop() + 30;
+                        int fx = screen.getGuiLeft() + 8 + 9 * 18 + 4 + 1;
+                        int fy = screen.getGuiTop() + 30 + 1;
                         targets.add(new Target<>() {
                             @Override
                             public Rect2i getArea() {
