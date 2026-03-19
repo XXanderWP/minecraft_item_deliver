@@ -104,17 +104,6 @@ public class AccessPortBlock extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof AccessPortBlockEntity port) {
-                for (ItemStack stack : port.recipe) {
-                    if (!stack.isEmpty()) {
-                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
-                    }
-                }
-                if (!port.indicator.isEmpty()) {
-                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), port.indicator);
-                }
-            }
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
