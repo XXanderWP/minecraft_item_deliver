@@ -7,6 +7,7 @@ import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.Slot;
 
@@ -40,7 +41,8 @@ public class JeiIntegration implements IModPlugin {
 
                         List<Target<I>> targets = new ArrayList<>();
 
-                        if (!(ingredient.getIngredient() instanceof ItemStack)) {
+                        Object ingredientObj = ingredient.getIngredient();
+                        if (!(ingredientObj instanceof ItemStack) && !(ingredientObj instanceof FluidStack)) {
                             return targets;
                         }
 
@@ -74,6 +76,33 @@ public class JeiIntegration implements IModPlugin {
                                 }
                             });
                         }
+
+                        // Добавляем слот жидкости (виртуальный)
+                        int fx = screen.getGuiLeft() + 8 + 9 * 18 + 4;
+                        int fy = screen.getGuiTop() + 30;
+                        targets.add(new Target<>() {
+                            @Override
+                            public Rect2i getArea() {
+                                return new Rect2i(fx, fy, 16, 16);
+                            }
+
+                            @Override
+                            public void accept(I ingredient) {
+                                if (ingredient instanceof FluidStack fluid) {
+                                    FluidStack copy = fluid.copy();
+                                    copy.setAmount(1000);
+                                    screen.getMenu().syncFluid(copy);
+                                } else if (ingredient instanceof ItemStack stack) {
+                                    net.minecraftforge.fluids.FluidUtil.getFluidContained(stack).ifPresent(fluid -> {
+                                        if (!fluid.isEmpty()) {
+                                            FluidStack copy = fluid.copy();
+                                            copy.setAmount(1000);
+                                            screen.getMenu().syncFluid(copy);
+                                        }
+                                    });
+                                }
+                            }
+                        });
 
                         return targets;
                     }

@@ -1,13 +1,22 @@
 package com.logisticsports.client;
 
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.minecraft.client.Minecraft;
 import com.logisticsports.menu.AccessPortSettingsMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPortSettingsMenu> {
 
@@ -108,16 +117,85 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        boolean shift = hasShiftDown();
+        boolean ctrl = hasControlDown();
+        int amount = 1;
+        if (shift && ctrl) amount = 1000;
+        else if (ctrl) amount = 100;
+        else if (shift) amount = 10;
+        
+        int finalAmount = (delta > 0 ? 1 : -1) * amount;
+
+        // Слот жидкости (100)
+        int fx = leftPos + 8 + 9 * 18 + 4;
+        int fy = topPos + 30;
+        if (mouseX >= fx && mouseX <= fx + 16 && mouseY >= fy && mouseY <= fy + 16) {
+             FluidStack fluid = menu.blockEntity.fluidRecipe;
+             if (!fluid.isEmpty()) {
+                 int currentAmount = fluid.getAmount();
+                 int newAmount = currentAmount + finalAmount;
+                 if (newAmount < 1) {
+                     newAmount = 1; // Минимум 1 mB
+                 }
+                 if (newAmount != currentAmount) {
+                     FluidStack copy = fluid.copy();
+                     copy.setAmount(newAmount);
+                     menu.syncFluid(copy);
+                 }
+                 return true;
+             }
+        }
+
         for (int i = 0; i < 10; i++) {
             Slot slot = menu.slots.get(i);
             int sx = leftPos + slot.x;
             int sy = topPos + slot.y;
             if (mouseX >= sx && mouseX <= sx + 16 && mouseY >= sy && mouseY <= sy + 16) {
-                menu.scrollSlot(i, delta > 0);
+                menu.scrollSlot(i, finalAmount);
                 return true;
             }
         }
         return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int fx = leftPos + 8 + 9 * 18 + 4;
+        int fy = topPos + 30;
+        if (mouseX >= fx && mouseX <= fx + 16 && mouseY >= fy && mouseY <= fy + 16) {
+            if (button == 0) { // ЛКМ
+                ItemStack carried = menu.getCarried();
+                if (carried.isEmpty()) {
+                    FluidStack fluid = menu.blockEntity.fluidRecipe;
+                    if (!fluid.isEmpty()) {
+                        FluidStack copy = fluid.copy();
+                        copy.setAmount(fluid.getAmount() + 1000);
+                        menu.syncFluid(copy);
+                        return true;
+                    }
+                }
+            }
+            menu.clicked(100, button, net.minecraft.world.inventory.ClickType.PICKUP, minecraft.player);
+            return true;
+        }
+
+        // Клик по слотам рецепта
+        for (int i = 0; i < 9; i++) {
+            Slot slot = menu.slots.get(i);
+            int sx = leftPos + slot.x;
+            int sy = topPos + slot.y;
+            if (mouseX >= sx && mouseX <= sx + 16 && mouseY >= sy && mouseY <= sy + 16) {
+                if (button == 0 && menu.getCarried().isEmpty()) {
+                    ItemStack stack = slot.getItem();
+                    if (!stack.isEmpty()) {
+                        menu.scrollSlot(i, 1);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
@@ -153,6 +231,21 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         int iy = y + 3;
         g.fill(ix, iy, ix + 18, iy + 18, 0xFF888888);
         g.fill(ix + 1, iy + 1, ix + 17, iy + 17, 0xFFDDDD55);
+
+        // Слот жидкости
+        int fx = x + 8 + 9 * 18 + 4;
+        int fy = y + 30;
+        g.fill(fx, fy, fx + 18, fy + 18, 0xFF888888);
+        g.fill(fx + 1, fy + 1, fx + 17, fy + 17, 0xFF777777);
+
+        FluidStack fluid = menu.blockEntity.fluidRecipe;
+        if (!fluid.isEmpty()) {
+            boolean isDraggingFluid = !minecraft.player.containerMenu.getCarried().isEmpty() && 
+                    net.minecraftforge.fluids.FluidUtil.getFluidContained(minecraft.player.containerMenu.getCarried()).isPresent();
+            int dx = isDraggingFluid ? 1 : 0;
+            int dy = isDraggingFluid ? 1 : 0;
+            renderFluid(g, fluid, fx + 1 + dx, fy + 1 + dy);
+        }
 
         // Частота
         g.drawString(font, Component.translatable("config.logisticsports.frequency_menu"), x + 8, y + 60, 0xFF222222, false);
@@ -197,6 +290,36 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         renderBackground(g);
         super.render(g, mx, my, partialTick);
         renderTooltip(g, mx, my);
+
+        // Тултип для жидкости
+        int fx = leftPos + 8 + 9 * 18 + 4;
+        int fy = topPos + 30;
+        if (mx >= fx && mx <= fx + 18 && my >= fy && my <= fy + 18) {
+            FluidStack fluid = menu.blockEntity.fluidRecipe;
+            if (!fluid.isEmpty()) {
+                List<Component> tooltip = new ArrayList<>();
+                tooltip.add(fluid.getDisplayName());
+                tooltip.add(Component.literal("§7" + fluid.getAmount() + " mB"));
+                g.renderComponentTooltip(font, tooltip, mx, my);
+            }
+        }
+    }
+
+    private void renderFluid(GuiGraphics g, FluidStack fluid, int x, int y) {
+        IClientFluidTypeExtensions props = IClientFluidTypeExtensions.of(fluid.getFluid());
+        ResourceLocation icon = props.getStillTexture(fluid);
+        if (icon == null) return;
+
+        TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(icon);
+        int color = props.getTintColor(fluid);
+        float r = ((color >> 16) & 0xFF) / 255f;
+        float g_col = ((color >> 8) & 0xFF) / 255f;
+        float b = (color & 0xFF) / 255f;
+        float a = ((color >> 24) & 0xFF) / 255f;
+
+        g.setColor(r, g_col, b, a);
+        g.blit(x, y, 0, 16, 16, sprite);
+        g.setColor(1f, 1f, 1f, 1f);
     }
 
     @Override

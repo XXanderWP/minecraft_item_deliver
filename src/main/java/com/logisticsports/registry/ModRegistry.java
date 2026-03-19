@@ -5,6 +5,9 @@ import com.logisticsports.block.AccessPortBlock;
 import com.logisticsports.block.OutputPortBlock;
 import com.logisticsports.blockentity.AccessPortBlockEntity;
 import com.logisticsports.blockentity.OutputPortBlockEntity;
+import com.logisticsports.block.TransportUnpackerBlock;
+import com.logisticsports.blockentity.TransportUnpackerBlockEntity;
+import com.logisticsports.item.TransportReservoirItem;
 import com.logisticsports.menu.AccessPortSettingsMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -41,12 +44,21 @@ public class ModRegistry {
     public static final RegistryObject<Block> OUTPUT_PORT = BLOCKS.register("output_port",
             () -> new OutputPortBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0f).noOcclusion()));
 
+    public static final RegistryObject<Block> TRANSPORT_UNPACKER = BLOCKS.register("transport_unpacker",
+            () -> new TransportUnpackerBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0f).noOcclusion()));
+
     // Предметы-блоки
     public static final RegistryObject<Item> ACCESS_PORT_ITEM = ITEMS.register("access_port",
             () -> new BlockItem(ACCESS_PORT.get(), new Item.Properties()));
 
     public static final RegistryObject<Item> OUTPUT_PORT_ITEM = ITEMS.register("output_port",
             () -> new BlockItem(OUTPUT_PORT.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> TRANSPORT_UNPACKER_ITEM = ITEMS.register("transport_unpacker",
+            () -> new BlockItem(TRANSPORT_UNPACKER.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> TRANSPORT_RESERVOIR = ITEMS.register("transport_reservoir",
+            () -> new TransportReservoirItem(new Item.Properties()));
 
     // Тайл-энтити
     public static final RegistryObject<BlockEntityType<AccessPortBlockEntity>> ACCESS_PORT_BE =
@@ -56,6 +68,10 @@ public class ModRegistry {
     public static final RegistryObject<BlockEntityType<OutputPortBlockEntity>> OUTPUT_PORT_BE =
             BLOCK_ENTITIES.register("output_port", () -> BlockEntityType.Builder
                     .of(OutputPortBlockEntity::new, OUTPUT_PORT.get()).build(null));
+
+    public static final RegistryObject<BlockEntityType<TransportUnpackerBlockEntity>> TRANSPORT_UNPACKER_BE =
+            BLOCK_ENTITIES.register("transport_unpacker", () -> BlockEntityType.Builder
+                    .of(TransportUnpackerBlockEntity::new, TRANSPORT_UNPACKER.get()).build(null));
 
     public static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(ForgeRegistries.MENU_TYPES, LogisticsPorts.MODID);
@@ -79,6 +95,8 @@ public class ModRegistry {
                     .displayItems((params, output) -> {
                         output.accept(ACCESS_PORT_ITEM.get());
                         output.accept(OUTPUT_PORT_ITEM.get());
+                        output.accept(TRANSPORT_UNPACKER_ITEM.get());
+                        output.accept(TRANSPORT_RESERVOIR.get());
                     })
                     .build());
 }

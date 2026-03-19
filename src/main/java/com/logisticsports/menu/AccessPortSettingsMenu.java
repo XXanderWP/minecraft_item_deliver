@@ -13,6 +13,10 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import com.logisticsports.network.PacketUpdateFluidRecipe;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
 
@@ -74,6 +78,25 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        if (slotId == 100) { // Наш виртуальный слот жидкости
+            ItemStack carried = getCarried();
+            if (button == 0) { // ЛКМ
+                if (!carried.isEmpty()) {
+                    // Пытаемся вытащить жидкость из предмета
+                    FluidUtil.getFluidContained(carried).ifPresent(fluid -> {
+                        if (!fluid.isEmpty()) {
+                            FluidStack copy = fluid.copy();
+                            copy.setAmount(1000); // По умолчанию 1 ведро для рецепта
+                            syncFluid(copy);
+                        }
+                    });
+                }
+            } else if (button == 1) { // ПКМ
+                syncFluid(FluidStack.EMPTY);
+            }
+            return;
+        }
+
         if (slotId < 0 || slotId >= slots.size()) {
             super.clicked(slotId, button, clickType, player);
             return;
@@ -111,21 +134,22 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
         super.clicked(slotId, button, clickType, player);
     }
 
-    public void scrollSlot(int slotId, boolean up) {
-        if (slotId < 0 || slotId > 9) return; // было slotId >= 9, теперь > 9
+    public void scrollSlot(int slotId, int amount) {
+        if (slotId < 0 || slotId >= 9) return; // Запрещаем скролл для индикатора (id 9)
         Slot slot = slots.get(slotId);
         ItemStack current = slot.getItem();
         if (current.isEmpty()) return;
 
-        int delta = up ? 1 : -1;
-        int newCount = current.getCount() + delta;
+        int newCount = current.getCount() + amount;
 
-        if (newCount <= 0) {
-            slot.set(ItemStack.EMPTY);
-            syncSlot(slotId, ItemStack.EMPTY);
-        } else {
-            int max = current.getMaxStackSize();
-            if (newCount > max) newCount = max;
+        if (newCount < 1) {
+            newCount = 1; // Минимум 1 предмет
+        }
+        
+        int max = current.getMaxStackSize();
+        if (newCount > max) newCount = max;
+        
+        if (newCount != current.getCount()) {
             ItemStack updated = current.copy();
             updated.setCount(newCount);
             slot.set(updated);
@@ -141,6 +165,14 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
         }
         blockEntity.setChanged();
         ModNetwork.CHANNEL.sendToServer(new PacketUpdateRecipeSlot(slotId, stack));
+    }
+
+    public void syncFluid(FluidStack fluid) {
+        blockEntity.fluidRecipe = fluid;
+        blockEntity.setChanged();
+        if (blockEntity.getLevel() != null && blockEntity.getLevel().isClientSide) {
+            ModNetwork.CHANNEL.sendToServer(new PacketUpdateFluidRecipe(fluid));
+        }
     }
 
     public static AccessPortSettingsMenu create(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
