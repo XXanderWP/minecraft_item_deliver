@@ -19,12 +19,16 @@ import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import com.logisticsports.network.PacketUpdateFluidRecipe;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
+import java.util.List;
+import java.util.ArrayList;
 
 public class AccessPortSettingsMenu extends AbstractContainerMenu {
 
     public final AccessPortBlockEntity blockEntity;
     public final ItemStackHandler recipeHandler;
     public final ItemStackHandler indicatorHandler;
+
+    public List<String> availableRecipients = new ArrayList<>();
 
     public AccessPortSettingsMenu(int containerId, Inventory playerInventory, AccessPortBlockEntity blockEntity) {
         super(ModRegistry.ACCESS_PORT_SETTINGS_MENU.get(), containerId);
@@ -177,9 +181,12 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
 
     public static AccessPortSettingsMenu create(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
         BlockPos pos = buf.readBlockPos();
+        List<String> recipients = buf.readCollection(ArrayList::new, FriendlyByteBuf::readUtf);
         BlockEntity be = playerInventory.player.level().getBlockEntity(pos);
         if (be instanceof AccessPortBlockEntity port) {
-            return new AccessPortSettingsMenu(containerId, playerInventory, port);
+            AccessPortSettingsMenu menu = new AccessPortSettingsMenu(containerId, playerInventory, port);
+            menu.availableRecipients = recipients;
+            return menu;
         }
         throw new IllegalStateException("No AccessPortSettingsMenu at " + pos);
     }

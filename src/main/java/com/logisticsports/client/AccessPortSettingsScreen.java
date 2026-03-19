@@ -25,6 +25,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     private EditBox frequencyField;
     private EditBox recipientField;
     private Button packageModeButton;
+    private final List<String> filteredSuggestions = new ArrayList<>();
+    private boolean showSuggestions = false;
 
     public AccessPortSettingsScreen(AccessPortSettingsMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -35,6 +37,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     @Override
     protected void init() {
         super.init();
+        System.out.println("[DEBUG_LOG] Initializing AccessPortSettingsScreen. Suggestions available: " + menu.availableRecipients.size() + " -> " + menu.availableRecipients);
 
         frequencyField = new EditBox(font,
                 leftPos + 65, topPos + 58,
@@ -93,17 +96,32 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         recipientField.setMaxLength(64);
         recipientField.setResponder(val -> {
             menu.blockEntity.recipient = val;
+            updateSuggestions(val);
             com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
                     new com.logisticsports.network.PacketUpdateRecipient(
                             menu.blockEntity.getBlockPos(), val));
         });
         addRenderableWidget(recipientField);
+
         updateRecipientFieldVisibility();
+    }
+
+    private void updateSuggestions(String input) {
+        filteredSuggestions.clear();
+        String lowerInput = input.toLowerCase();
+        for (String s : menu.availableRecipients) {
+            if (s.toLowerCase().contains(lowerInput)) {
+                filteredSuggestions.add(s);
+            }
+        }
+        System.out.println("[DEBUG_LOG] Updated suggestions for '" + input + "'. Found: " + filteredSuggestions.size());
     }
 
     private void updateRecipientFieldVisibility() {
         if (recipientField != null) {
-            recipientField.setVisible(menu.blockEntity.packageMode);
+            boolean visible = menu.blockEntity.packageMode;
+            recipientField.setVisible(visible);
+            if (!visible) showSuggestions = false;
         }
     }
 
@@ -160,6 +178,26 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (showSuggestions && !filteredSuggestions.isEmpty()) {
+            int x = leftPos + 8;
+            int y = topPos + 125;
+            for (int i = 0; i < filteredSuggestions.size(); i++) {
+                if (mouseX >= x && mouseX <= x + 150 && mouseY >= y + i * 12 && mouseY <= y + (i + 1) * 12) {
+                    recipientField.setValue(filteredSuggestions.get(i));
+                    showSuggestions = false;
+                    return true;
+                }
+            }
+        }
+
+        if (recipientField != null && recipientField.isVisible() && mouseX >= recipientField.getX() && mouseX <= recipientField.getX() + recipientField.getWidth() 
+                && mouseY >= recipientField.getY() && mouseY <= recipientField.getY() + recipientField.getHeight()) {
+            showSuggestions = true;
+            updateSuggestions(recipientField.getValue());
+        } else {
+            showSuggestions = false;
+        }
+
         int fx = leftPos + 8 + 9 * 18 + 4;
         int fy = topPos + 30;
         if (mouseX >= fx && mouseX <= fx + 16 && mouseY >= fy && mouseY <= fy + 16) {
@@ -293,9 +331,24 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partialTick) {
-        renderBackground(g);
         super.render(g, mx, my, partialTick);
         renderTooltip(g, mx, my);
+
+        if (showSuggestions && !filteredSuggestions.isEmpty() && recipientField != null && recipientField.isVisible()) {
+            int x = leftPos + 8;
+            int y = topPos + 125;
+            int maxShow = Math.min(filteredSuggestions.size(), 10);
+            int height = maxShow * 12;
+            g.fill(x, y, x + 150, y + height, 0xDD000000);
+            for (int i = 0; i < maxShow; i++) {
+                int color = 0xFFFFFFFF;
+                if (mx >= x && mx <= x + 150 && my >= y + i * 12 && my <= y + (i + 1) * 12) {
+                    color = 0xFFFFFFA0;
+                    g.fill(x, y + i * 12, x + 150, y + (i + 1) * 12, 0x44FFFFFF);
+                }
+                g.drawString(font, filteredSuggestions.get(i), x + 2, y + 2 + i * 12, color);
+            }
+        }
 
         // Тултип для жидкости
         int fx = leftPos + 8 + 9 * 18 + 4;
