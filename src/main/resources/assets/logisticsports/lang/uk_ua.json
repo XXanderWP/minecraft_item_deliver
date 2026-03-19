@@ -40,5 +40,13 @@
   "config.jade.plugin_logisticsports.access_port": "Порт доступу",
   "config.jade.plugin_logisticsports.output_port": "Порт видачі",
   "block.logisticsports.access_port": "Порт доступу",
-  "block.logisticsports.output_port": "Порт видачі"
+  "block.logisticsports.output_port": "Порт видачі",
+  "config.logisticsports.render_indicator": "Відображати індикатор",
+  "config.logisticsports.rotate_indicator": "Обертати індикатор",
+  "config.logisticsports.render_distance": "Дистанція промальовування індикатора",
+  "config.logisticsports.check_updates": "Перевіряти оновлення",
+  "config.logisticsports.update_check_interval": "Інтервал перевірки оновлень (хв)",
+  "chat.logisticsports.update_available": "Доступна нова версія (%s)!",
+  "chat.logisticsports.download": "Завантажити",
+  "chat.logisticsports.click_to_open": "Натисніть, щоб відкрити сторінку релізів у GitHub"
 }
