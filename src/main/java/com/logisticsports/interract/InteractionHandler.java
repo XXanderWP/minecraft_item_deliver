@@ -34,7 +34,7 @@ public class InteractionHandler {
             net.minecraft.tags.ItemTags.create(
                     net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("forge", "tools/wrench"));
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
     public static void onRightClick(PlayerInteractEvent.RightClickBlock event) {
         Level level = event.getLevel();
         Player player = event.getEntity();
@@ -46,6 +46,61 @@ public class InteractionHandler {
 
         BlockState state = level.getBlockState(pos);
         Block block = state.getBlock();
+
+        // Логика копирования рецепта из Redstone Requester в Access Port в руке
+        if (stack.getItem() instanceof net.minecraft.world.item.BlockItem bi && bi.getBlock() instanceof AccessPortBlock) {
+            net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+            
+            if (blockId.toString().equals("create:redstone_requester")) {
+                BlockEntity be = level.getBlockEntity(pos);
+                
+                if (be != null) {
+                    CompoundTag beTag = be.saveWithFullMetadata();
+                    
+                    if (beTag.contains("EncodedRequest")) {
+                        CompoundTag encodedRequest = beTag.getCompound("EncodedRequest");
+                        if (encodedRequest.contains("OrderedStacks")) {
+                            CompoundTag orderedStacks = encodedRequest.getCompound("OrderedStacks");
+                            if (orderedStacks.contains("Entries")) {
+                                net.minecraft.nbt.ListTag entries = orderedStacks.getList("Entries", net.minecraft.nbt.Tag.TAG_COMPOUND);
+                                net.minecraft.nbt.ListTag itemsList = new net.minecraft.nbt.ListTag();
+                                
+                                for (int i = 0; i < entries.size(); i++) {
+                                    CompoundTag entry = entries.getCompound(i);
+                                    if (entry.contains("Item")) {
+                                        CompoundTag itemTag = entry.getCompound("Item").copy();
+                                        // Redstone Requester хранит количество в поле Amount в entry, а не только в Count внутри Item
+                                        if (entry.contains("Amount")) {
+                                            itemTag.putByte("Count", (byte) entry.getInt("Amount"));
+                                        }
+                                        itemTag.putByte("Slot", (byte) i);
+                                        itemsList.add(itemTag);
+                                    }
+                                }
+
+                                if (!itemsList.isEmpty()) {
+                                    CompoundTag stackTag = stack.getOrCreateTag();
+                                    CompoundTag accessPortBETag = stackTag.getCompound("BlockEntityTag");
+                                    if (accessPortBETag == null) accessPortBETag = new CompoundTag();
+                                    
+                                    accessPortBETag.put("Items", itemsList);
+                                    stackTag.put("BlockEntityTag", accessPortBETag);
+                                    
+                                    player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", 
+                                            Component.translatable("config.logisticsports.action.recipe_copied")));
+                                    
+                                    AllSoundEvents.CONFIRM.playOnServer(level, pos);
+                                    
+                                    event.setCanceled(true);
+                                    event.setCancellationResult(InteractionResult.SUCCESS);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Проверяем блок
         if (!(block instanceof OutputPortBlock) &&

@@ -34,6 +34,7 @@
   "config.logisticsports.action.freq_set": "Frequency set in block: %s",
   "config.logisticsports.action.freq_synced": "New frequency synced: %s",
   "config.logisticsports.action.freq_updated": "Block frequency updated from item: %s",
+  "config.logisticsports.action.recipe_copied": "Recipe copied to Access Port",
   "config.logisticsports.fluid": "Fluid: ",
   "config.logisticsports.empty": "Empty",
   "item.logisticsports.transport_reservoir": "Transport Reservoir",
