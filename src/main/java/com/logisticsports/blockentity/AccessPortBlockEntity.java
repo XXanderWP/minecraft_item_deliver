@@ -38,6 +38,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public int frequency = 0;
     // Поведение при нехватке: true = только если всё есть, false = выдавать что есть
     public boolean requireAll = true;
+    private int updateTimer = 0;
+
     public String getAccessPortId() {
         return worldPosition.getX() + "," + worldPosition.getY() + "," + worldPosition.getZ();
     }
@@ -47,7 +49,13 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, AccessPortBlockEntity be) {
-        // Пока пусто, логика будет добавлена позже
+        if (level != null && !level.isClientSide) {
+            be.updateTimer++;
+            if (be.updateTimer >= 100) { // 5 секунд (20 тиков * 5)
+                be.updateTimer = 0;
+                be.refreshAvailableCache();
+            }
+        }
     }
 
     public void placeOrder(Player player, int batches) {
