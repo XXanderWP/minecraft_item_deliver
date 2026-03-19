@@ -114,22 +114,22 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
             ItemStack carried = getCarried();
             ItemStack current = slot.getItem();
 
-            if (clickType == ClickType.PICKUP) {
-                if (button == 0) {
-                    // ЛКМ
-                    if (!carried.isEmpty()) {
-                        // Ставим или заменяем предмет
-                        ItemStack copy = carried.copy();
-                        copy.setCount(1);
-                        slot.set(copy);
-                        syncSlot(slotId, copy);
-                    }
-                    // ЛКМ без предмета в руке — ничего не делаем, обработано в Screen
-                } else if (button == 1) {
-                    // ПКМ — убираем предмет
-                    slot.set(ItemStack.EMPTY);
-                    syncSlot(slotId, ItemStack.EMPTY);
+            if (button == 0) {
+                // ЛКМ
+                if (!carried.isEmpty()) {
+                    // Ставим или заменяем предмет
+                    ItemStack copy = carried.copy();
+                    copy.setCount(1);
+                    slot.set(copy);
+                    syncSlot(slotId, copy);
+                } else if (!current.isEmpty()) {
+                    // Клик пустой рукой увеличивает на 1
+                    scrollSlot(slotId, 1);
                 }
+            } else if (button == 1) {
+                // ПКМ — убираем предмет
+                slot.set(ItemStack.EMPTY);
+                syncSlot(slotId, ItemStack.EMPTY);
             }
             return;
         }
@@ -139,7 +139,7 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
     }
 
     public void scrollSlot(int slotId, int amount) {
-        if (slotId < 0 || slotId >= 9) return; // Запрещаем скролл для индикатора (id 9)
+        if (slotId < 0 || slotId >= 10) return; // Разрешаем скролл для рецепта (0-8) и индикатора (9)
         Slot slot = slots.get(slotId);
         ItemStack current = slot.getItem();
         if (current.isEmpty()) return;

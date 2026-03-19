@@ -164,7 +164,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
              return true;
         }
 
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 10; i++) {
             Slot slot = menu.slots.get(i);
             int sx = leftPos + slot.x;
             int sy = topPos + slot.y;
@@ -217,23 +217,14 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             return true;
         }
 
-        // Клик по слотам рецепта
-        for (int i = 0; i < 9; i++) {
+        // Клик по слотам рецепта и индикатору
+        for (int i = 0; i < 10; i++) {
             Slot slot = menu.slots.get(i);
             int sx = leftPos + slot.x;
             int sy = topPos + slot.y;
             if (mouseX >= sx && mouseX <= sx + 16 && mouseY >= sy && mouseY <= sy + 16) {
-                // Если кликнули по слоту, то метод clicked в меню уже будет вызван через 
-                // стандартную обработку кликов, если мы не перехватим его здесь.
-                // В данном случае мы хотим, чтобы ЛКМ без предмета просто увеличивал количество на 1.
-                if (button == 0 && menu.getCarried().isEmpty()) {
-                    ItemStack stack = slot.getItem();
-                    if (!stack.isEmpty()) {
-                        menu.scrollSlot(i, 1);
-                        return true;
-                    }
-                }
-                // Если в руке есть предмет, пусть работает стандартная логика clicked в меню
+                // Все клики по слотам 0-9 теперь обрабатываются через виртуальный клик
+                // аналогично слоту жидкости (100)
                 menu.clicked(i, button, net.minecraft.world.inventory.ClickType.PICKUP, minecraft.player);
                 return true;
             }
