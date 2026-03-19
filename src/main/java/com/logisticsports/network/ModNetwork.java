@@ -82,5 +82,12 @@ public class ModNetwork {
                 PacketUpdateFluidRecipe::decode,
                 PacketUpdateFluidRecipe::handle
         );
+
+        CHANNEL.registerMessage(id++,
+                PacketRefreshAvailableCache.class,
+                PacketRefreshAvailableCache::encode,
+                PacketRefreshAvailableCache::decode,
+                PacketRefreshAvailableCache::handle
+        );
     }
 }

@@ -42,6 +42,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public int frequency = 0;
     // Поведение при нехватке: true = только если всё есть, false = выдавать что есть
     public boolean requireAll = true;
+    public long lastRefreshTime = 0;
 
     public String getAccessPortId() {
         return worldPosition.getX() + "," + worldPosition.getY() + "," + worldPosition.getZ();
@@ -576,6 +577,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     public void refreshAvailableCache() {
         if (level == null || level.isClientSide) return;
+
         availableCache.clear();
         List<OutputPortBlockEntity> ports = findOutputPorts();
 

@@ -1,6 +1,9 @@
 package com.logisticsports.client.jade;
 
 import com.logisticsports.blockentity.AccessPortBlockEntity;
+import com.logisticsports.network.ModNetwork;
+import com.logisticsports.network.PacketRefreshAvailableCache;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -18,10 +21,20 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
     public static final ResourceLocation UID =
             ResourceLocation.fromNamespaceAndPath("logisticsports", "access_port");
 
+    private static final java.util.Map<BlockPos, Long> LAST_REFRESH_CLIENT = new java.util.HashMap<>();
+
     @Override
     public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
         if (!(accessor.getBlockEntity() instanceof AccessPortBlockEntity be)) return;
 
+        // Запрос обновления кэша
+        long now = System.currentTimeMillis();
+        BlockPos pos = accessor.getPosition();
+        if (now - LAST_REFRESH_CLIENT.getOrDefault(pos, 0L) > 5000) {
+            LAST_REFRESH_CLIENT.put(pos, now);
+            ModNetwork.CHANNEL.sendToServer(new PacketRefreshAvailableCache(pos));
+        }
+                
         // Частота
         tooltip.add(Component.translatable("config.logisticsports.frequency_tooltip", be.frequency));
 
