@@ -322,6 +322,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                         ItemStack reservoir = new ItemStack(ModRegistry.TRANSPORT_RESERVOIR.get());
                         com.logisticsports.item.TransportReservoirItem.setFluid(reservoir, drained);
                         portToReservoirs.computeIfAbsent(port, k -> new ArrayList<>()).add(reservoir);
+                        port.startProcessingFluid(drained);
                         remainingFluid -= drained.getAmount();
                     }
                 }
@@ -378,10 +379,10 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 if (!effectiveRecipient.isBlank()) {
                     com.simibubi.create.content.logistics.box.PackageItem.addAddress(packageStack, effectiveRecipient);
                 }
-                port.insertItem(packageStack);
+                port.startProcessingItem(packageStack, Direction.UP); // Временно UP, так как это из сундука "сверху" или "сбоку"
             } else {
                 for (ItemStack s : toDeliver) {
-                    port.insertItem(s);
+                    port.startProcessingItem(s, Direction.UP);
                 }
             }
         }

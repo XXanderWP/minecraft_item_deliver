@@ -26,5 +26,9 @@ public class ClientSetup {
                 ModRegistry.ACCESS_PORT_BE.get(),
                 AccessPortRenderer::new
         );
+        event.registerBlockEntityRenderer(
+                ModRegistry.OUTPUT_PORT_BE.get(),
+                OutputPortRenderer::new
+        );
     }
 }
