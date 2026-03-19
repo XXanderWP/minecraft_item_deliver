@@ -120,7 +120,7 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
                         slot.set(copy);
                         syncSlot(slotId, copy);
                     }
-                    // ЛКМ без предмета в руке — ничего не делаем
+                    // ЛКМ без предмета в руке — ничего не делаем, обработано в Screen
                 } else if (button == 1) {
                     // ПКМ — убираем предмет
                     slot.set(ItemStack.EMPTY);
