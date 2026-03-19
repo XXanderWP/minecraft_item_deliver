@@ -325,26 +325,38 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             }
         }
 
+        // Создаем копию списка требуемых предметов для отслеживания глобального остатка
+        List<ItemStack> globalRemainingItems = new ArrayList<>();
+        for (ItemStack s : needed) {
+            globalRemainingItems.add(s.copy());
+        }
+
         for (OutputPortBlockEntity port : ports) {
             List<ItemStack> toDeliver = new ArrayList<>();
             // Сначала предметы
-            for (ItemStack need : needed) {
-                int remaining = need.getCount();
+            for (ItemStack remainingNeed : globalRemainingItems) {
+                int stillNeeded = remainingNeed.getCount();
+                if (stillNeeded <= 0) continue;
+
                 for (Direction dir : Direction.values()) {
-                    if (remaining <= 0) break;
+                    if (stillNeeded <= 0) break;
                     BlockPos neighbor = port.getBlockPos().relative(dir);
                     BlockEntity be = level.getBlockEntity(neighbor);
                     if (be == null) continue;
                     var cap = be.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
                     if (!cap.isPresent()) continue;
                     var handler = cap.orElse(null);
-                    for (int i = 0; i < handler.getSlots() && remaining > 0; i++) {
+                    for (int i = 0; i < handler.getSlots() && stillNeeded > 0; i++) {
                         ItemStack s = handler.getStackInSlot(i);
-                        if (s.isEmpty() || !ItemStack.isSameItemSameTags(s, need)) continue;
-                        ItemStack extracted = handler.extractItem(i, remaining, false);
+                        if (s.isEmpty() || !ItemStack.isSameItemSameTags(s, remainingNeed)) continue;
+                        
+                        ItemStack extracted = handler.extractItem(i, stillNeeded, false);
                         if (!extracted.isEmpty()) {
                             toDeliver.add(extracted);
-                            remaining -= extracted.getCount();
+                            int countExtracted = extracted.getCount();
+                            stillNeeded -= countExtracted;
+                            // Уменьшаем глобальный остаток для этого предмета
+                            remainingNeed.shrink(countExtracted);
                         }
                     }
                 }
