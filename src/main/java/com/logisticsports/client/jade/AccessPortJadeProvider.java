@@ -9,8 +9,6 @@ import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.ITooltip;
 import snownee.jade.api.config.IPluginConfig;
-import snownee.jade.api.ui.IElement;
-import snownee.jade.api.ui.IElementHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,24 +27,29 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
 
         // Индикатор (результат)
         if (!be.indicator.isEmpty()) {
-            IElementHelper helper = IElementHelper.get();
-            IElement icon = helper.item(be.indicator, 1f);
-            tooltip.add(Component.translatable("config.logisticsports.result_tooltip", be.indicator.getHoverName().getString()
-                    + (be.indicator.getCount() > 1 ? " x" + be.indicator.getCount() : "")));
+            Component resultLabel = Component.translatable("config.logisticsports.result_tooltip", 
+                    Component.empty().append(be.indicator.getHoverName())
+                            .append(be.indicator.getCount() > 1 ? " x" + be.indicator.getCount() : ""));
+            tooltip.add(resultLabel);
         }
 
         // Рецепт
         List<ItemStack> grouped = getGrouped(be);
-        if (!grouped.isEmpty()) {
+        if (!grouped.isEmpty() || !be.fluidRecipe.isEmpty()) {
             tooltip.add(Component.translatable("config.logisticsports.require_tooltip"));
             for (ItemStack stack : grouped) {
                 int avail = be.getAvailableCount(stack);
                 int needed = stack.getCount();
                 String color = avail >= needed ? "§a" : "§c";
-                tooltip.add(Component.literal("  §7" +
-                        stack.getHoverName().getString() +
-                        " §fx" + needed +
-                        " " + color + "(" + avail + ")"));
+                
+                tooltip.add(Component.literal("  ").append(stack.getHoverName()).append(Component.literal(" §fx" + needed + " " + color + "(" + avail + ")")));
+            }
+            if (!be.fluidRecipe.isEmpty()) {
+                int avail = be.getAvailableFluidCount(be.fluidRecipe);
+                int needed = be.fluidRecipe.getAmount();
+                String color = avail >= needed ? "§a" : "§c";
+
+                tooltip.add(Component.literal("  ").append(be.fluidRecipe.getDisplayName()).append(Component.literal(" §fx" + needed + "mB " + color + "(" + avail + "mB)")));
             }
         }
     }

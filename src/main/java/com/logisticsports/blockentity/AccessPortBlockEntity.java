@@ -95,14 +95,14 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         // Проверяем наличие предметов в хранилищах
         Map<ItemStack, Integer> available = scanAvailable(ports);
         Map<FluidStack, Integer> availableFluids = scanAvailableFluids(ports);
-        List<String> missing = new ArrayList<>();
+        List<Component> missing = new ArrayList<>();
 
         for (ItemStack need : needed) {
             int have = getAvailableCount(available, need);
             if (have < need.getCount()) {
                 if (requireAll) {
-                    missing.add(need.getHoverName().getString()
-                            + " (" + have + "/" + need.getCount() + ")");
+                    missing.add(Component.literal("§c  - ").append(need.getHoverName())
+                            .append(Component.literal(" (" + have + "/" + need.getCount() + ")")));
                 }
             }
         }
@@ -111,16 +111,16 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             int have = getAvailableFluidCount(availableFluids, neededFluid);
             if (have < neededFluid.getAmount()) {
                 if (requireAll) {
-                    missing.add(neededFluid.getDisplayName().getString()
-                            + " (" + have + "/" + neededFluid.getAmount() + "mB)");
+                    missing.add(Component.literal("§c  - ").append(neededFluid.getDisplayName())
+                            .append(Component.literal(" (" + have + "/" + neededFluid.getAmount() + "mB)")));
                 }
             }
         }
 
         if (requireAll && !missing.isEmpty()) {
             player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.missing")));
-            for (String m : missing) {
-                player.sendSystemMessage(Component.literal("§c  - " + m));
+            for (Component m : missing) {
+                player.sendSystemMessage(m);
             }
             setStatus(2); // провал
             return;
@@ -587,17 +587,27 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 // Пропускаем сам порт выдачи
                 if (be instanceof OutputPortBlockEntity) continue;
 
-                var cap = be.getCapability(
+                var itemCap = be.getCapability(
                         net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER,
                         dir.getOpposite());
 
-                cap.ifPresent(handler -> {
+                itemCap.ifPresent(handler -> {
                     for (int i = 0; i < handler.getSlots(); i++) {
                         ItemStack s = handler.getStackInSlot(i);
                         if (s.isEmpty()) continue;
                         String key = net.minecraft.core.registries.BuiltInRegistries.ITEM
                                 .getKey(s.getItem()).toString();
                         availableCache.merge(key, s.getCount(), Integer::sum);
+                    }
+                });
+
+                var fluidCap = be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
+                fluidCap.ifPresent(handler -> {
+                    for (int i = 0; i < handler.getTanks(); i++) {
+                        FluidStack s = handler.getFluidInTank(i);
+                        if (s.isEmpty()) continue;
+                        String key = "fluid:" + net.minecraftforge.registries.ForgeRegistries.FLUIDS.getKey(s.getFluid()).toString();
+                        availableCache.merge(key, s.getAmount(), Integer::sum);
                     }
                 });
             }
@@ -613,5 +623,10 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         String key = net.minecraft.core.registries.BuiltInRegistries.ITEM
                 .getKey(stack.getItem()).toString();
         return availableCache.getOrDefault(key, 0);
+    }
+
+    public int getAvailableFluidCount(FluidStack stack) {
+        String key = net.minecraftforge.registries.ForgeRegistries.FLUIDS.getKey(stack.getFluid()).toString();
+        return availableCache.getOrDefault("fluid:" + key, 0);
     }
 }

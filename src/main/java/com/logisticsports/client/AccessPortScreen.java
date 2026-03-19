@@ -147,8 +147,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
                 g.renderItem(stack, x + 5, listY + 2);
 
-                String name = stack.getHoverName().getString();
-//                if (name.length() > 14) name = name.substring(0, 12) + "..";
+                Component name = stack.getHoverName();
                 g.drawString(font, name, x + 26, listY + 6, 0xFF222222, false);
 
                 // Нужно x количество
@@ -171,11 +170,10 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             g.fill(x + 4, indY, x + BG_WIDTH - 4, indY + 22, 0xFF8B7000);
             g.fill(x + 5, indY + 1, x + BG_WIDTH - 5, indY + 21, 0xFFD4A017);
             g.renderItem(ind, x + 8, indY + 3);
-            String indName = ind.getHoverName().getString();
-//            if (indName.length() > 14) indName = indName.substring(0, 12) + "..";
-            g.drawString(font, Component.translatable("config.logisticsports.result", indName +
-                            (ind.getCount() > 1 ? " x" + ind.getCount() : "")),
-                    x + 28, indY + 7, 0xFF222222, false);
+            Component indName = ind.getHoverName();
+            Component resultText = Component.translatable("config.logisticsports.result", 
+                    Component.empty().append(indName).append(ind.getCount() > 1 ? " x" + ind.getCount() : ""));
+            g.drawString(font, resultText, x + 28, indY + 7, 0xFF222222, false);
         }
 
         // Нижняя панель
