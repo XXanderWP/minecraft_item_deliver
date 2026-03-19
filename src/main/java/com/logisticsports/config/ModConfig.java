@@ -52,6 +52,10 @@ public class ModConfig {
     public static class ServerConfig {
         public final ForgeConfigSpec.BooleanValue checkUpdates;
         public final ForgeConfigSpec.IntValue updateCheckInterval;
+        
+        public final ForgeConfigSpec.BooleanValue enableAutoSync;
+        public final ForgeConfigSpec.IntValue autoSyncDistance;
+        public final ForgeConfigSpec.IntValue autoSyncInterval;
 
         public ServerConfig(ForgeConfigSpec.Builder builder) {
             builder.push("updates");
@@ -65,6 +69,25 @@ public class ModConfig {
                     .comment("Interval between update checks in minutes (5 to 120).")
                     .translation("config.logisticsports.update_check_interval")
                     .defineInRange("updateCheckInterval", 30, 5, 120);
+
+            builder.pop();
+
+            builder.push("access_port");
+
+            enableAutoSync = builder
+                    .comment("Whether to automatically synchronize Access Port data (available resources) periodically.")
+                    .translation("config.logisticsports.enable_auto_sync")
+                    .define("enableAutoSync", false);
+
+            autoSyncDistance = builder
+                    .comment("Maximum distance (in blocks) to a player for automatic synchronization to occur.")
+                    .translation("config.logisticsports.auto_sync_distance")
+                    .defineInRange("autoSyncDistance", 5, 1, 64);
+
+            autoSyncInterval = builder
+                    .comment("Interval between automatic synchronization in seconds (1 to 60).")
+                    .translation("config.logisticsports.auto_sync_interval")
+                    .defineInRange("autoSyncInterval", 5, 1, 60);
 
             builder.pop();
         }

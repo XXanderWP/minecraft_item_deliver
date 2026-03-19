@@ -17,6 +17,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
+import com.logisticsports.config.ModConfig;
 import com.logisticsports.menu.AccessPortMenu;
 import com.logisticsports.blockentity.OutputPortBlockEntity;
 import net.minecraft.core.Direction;
@@ -41,7 +42,6 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public int frequency = 0;
     // Поведение при нехватке: true = только если всё есть, false = выдавать что есть
     public boolean requireAll = true;
-    private int updateTimer = 0;
 
     public String getAccessPortId() {
         return worldPosition.getX() + "," + worldPosition.getY() + "," + worldPosition.getZ();
@@ -52,11 +52,13 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, AccessPortBlockEntity be) {
-        if (level != null && !level.isClientSide) {
-            be.updateTimer++;
-            if (be.updateTimer >= 100) { // 5 секунд (20 тиков * 5)
-                be.updateTimer = 0;
-                be.refreshAvailableCache();
+        if (level != null && !level.isClientSide && ModConfig.SERVER.enableAutoSync.get()) {
+            int intervalTicks = Math.max(1, ModConfig.SERVER.autoSyncInterval.get() * 20);
+            if (level.getGameTime() % intervalTicks == 0) {
+                int dist = ModConfig.SERVER.autoSyncDistance.get();
+                if (level.hasNearbyAlivePlayer(pos.getX(), pos.getY(), pos.getZ(), dist)) {
+                    be.refreshAvailableCache();
+                }
             }
         }
     }
@@ -413,7 +415,6 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
-    // Замени load чтобы читал кэш
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
