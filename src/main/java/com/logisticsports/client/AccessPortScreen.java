@@ -9,6 +9,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.world.inventory.InventoryMenu;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -162,6 +168,28 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             }
         }
 
+        // Жидкость
+        FluidStack fluid = menu.blockEntity.fluidRecipe;
+        if (!fluid.isEmpty()) {
+            int rowColor = (grouped.size() % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
+            g.fill(x + 4, listY, x + BG_WIDTH - 4, listY + 20, rowColor);
+
+            renderFluid(g, fluid, x + 5, listY + 2);
+
+            Component name = fluid.getDisplayName();
+            g.drawString(font, name, x + 26, listY + 6, 0xFF222222, false);
+
+            // Нужно x количество (mB)
+            int needed = fluid.getAmount() * batches;
+            // Доступно — запрашиваем с сервера через данные блока
+            int avail = menu.blockEntity.getAvailableFluidCount(fluid);
+            int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
+            g.drawString(font, needed + "mB (" + avail + ")",
+                    x + BG_WIDTH - 75, listY + 6, availColor, false);
+
+            listY += 21;
+        }
+
         // Индикатор (результат) — над нижней панелью
         if (!menu.blockEntity.indicator.isEmpty()) {
             ItemStack ind = menu.blockEntity.indicator;
@@ -190,4 +218,21 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
     @Override
     protected void renderLabels(GuiGraphics g, int mx, int my) {}
+
+    private void renderFluid(GuiGraphics g, FluidStack fluid, int x, int y) {
+        IClientFluidTypeExtensions props = IClientFluidTypeExtensions.of(fluid.getFluid());
+        ResourceLocation icon = props.getStillTexture(fluid);
+        if (icon == null) return;
+
+        TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(icon);
+        int color = props.getTintColor(fluid);
+        float r = ((color >> 16) & 0xFF) / 255f;
+        float g_col = ((color >> 8) & 0xFF) / 255f;
+        float b = (color & 0xFF) / 255f;
+        float a = ((color >> 24) & 0xFF) / 255f;
+
+        g.setColor(r, g_col, b, a);
+        g.blit(x, y, 0, 16, 16, sprite);
+        g.setColor(1f, 1f, 1f, 1f);
+    }
 }
