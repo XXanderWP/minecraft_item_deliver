@@ -3,6 +3,7 @@ package com.logisticsports.interract;
 import com.logisticsports.LogisticsPorts;
 import com.logisticsports.block.AccessPortBlock;
 import com.logisticsports.block.OutputPortBlock;
+import com.logisticsports.block.TransportUnpackerBlock;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import com.logisticsports.blockentity.AccessPortBlockEntity;
@@ -48,7 +49,7 @@ public class InteractionHandler {
 
         // Проверяем блок
         if (!(block instanceof OutputPortBlock) &&
-                !(block instanceof AccessPortBlock)) return;
+                !(block instanceof AccessPortBlock) && !(block instanceof TransportUnpackerBlock)) return;
 
         if (AllowWrenchInterract(player)) {
             if (player.isShiftKeyDown()) {
@@ -63,10 +64,6 @@ public class InteractionHandler {
                     if (be instanceof AccessPortBlockEntity ap) {
                         ap.recipe.clear();
                         ap.indicator = ItemStack.EMPTY;
-                    } else if (be instanceof OutputPortBlockEntity op) {
-//                        for (int i = 0; i < op.getInventory().getSlots(); i++) {
-//                            op.getInventory().setStackInSlot(i, ItemStack.EMPTY);
-//                        }
                     }
                 }
 
@@ -81,7 +78,8 @@ public class InteractionHandler {
                 // Отменяем всё остальное
                 event.setCanceled(true);
                 event.setCancellationResult(InteractionResult.SUCCESS);
-            } else {
+            } else if((block instanceof OutputPortBlock) ||
+                    (block instanceof AccessPortBlock)) {
                 if (FaceRotation(level, pos)) {
                     event.setCanceled(true);
                     event.setCancellationResult(InteractionResult.SUCCESS);

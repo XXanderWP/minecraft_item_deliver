@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "logisticsports:block/transport_unpacker" }
+  }
+}

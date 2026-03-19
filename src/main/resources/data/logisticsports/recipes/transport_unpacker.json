@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "A A",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "item": "create:fluid_tank"
+    }
+  },
+  "result": {
+    "item": "logisticsports:transport_unpacker",
+    "count": 3
+  }
+}

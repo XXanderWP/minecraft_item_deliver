@@ -28,7 +28,11 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
         }
     };
 
+    private final Direction[] lastInsertSide = new Direction[9];
+
     private final LazyOptional<IItemHandler> itemHandler = LazyOptional.of(() -> inventory);
+
+    private final IItemHandler[] sideHandlers = new IItemHandler[6];
 
     public TransportUnpackerBlockEntity(BlockPos pos, BlockState state) {
         super(ModRegistry.TRANSPORT_UNPACKER_BE.get(), pos, state);
@@ -51,6 +55,12 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                         be.setChanged();
                     }
                 }
+                
+                // Если после слива жидкости (или изначально) резервуар пуст - удаляем его
+                if (TransportReservoirItem.getFluid(stack).isEmpty()) {
+                    be.inventory.setStackInSlot(i, ItemStack.EMPTY);
+                    be.setChanged();
+                }
             }
         }
 
@@ -59,12 +69,14 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
             ItemStack stack = be.inventory.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            // Если это резервуар и он еще не пуст - не выталкиваем пока (опционально)
-            if (stack.getItem() instanceof TransportReservoirItem && !TransportReservoirItem.getFluid(stack).isEmpty()) {
+            // Если это резервуар - его мы уже обработали или удалили выше
+            if (stack.getItem() instanceof TransportReservoirItem) {
                 continue;
             }
 
             for (Direction dir : Direction.values()) {
+                if (dir == be.lastInsertSide[i]) continue;
+
                 BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
                 if (neighbor != null) {
                     var cap = neighbor.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
@@ -111,9 +123,58 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
     @Override
     public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         if (cap == ForgeCapabilities.ITEM_HANDLER) {
-            return itemHandler.cast();
+            if (side == null) return itemHandler.cast();
+            int index = side.ordinal();
+            if (sideHandlers[index] == null) {
+                sideHandlers[index] = new SideItemHandler(inventory, side);
+            }
+            return LazyOptional.of(() -> sideHandlers[index]).cast();
         }
         return super.getCapability(cap, side);
+    }
+
+    private class SideItemHandler implements IItemHandler {
+        private final IItemHandler parent;
+        private final Direction side;
+
+        public SideItemHandler(IItemHandler parent, Direction side) {
+            this.parent = parent;
+            this.side = side;
+        }
+
+        @Override
+        public int getSlots() {
+            return parent.getSlots();
+        }
+
+        @Override
+        public @NotNull ItemStack getStackInSlot(int slot) {
+            return parent.getStackInSlot(slot);
+        }
+
+        @Override
+        public @NotNull ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
+            ItemStack result = parent.insertItem(slot, stack, simulate);
+            if (!simulate && result.getCount() < stack.getCount()) {
+                lastInsertSide[slot] = side;
+            }
+            return result;
+        }
+
+        @Override
+        public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return parent.extractItem(slot, amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return parent.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+            return parent.isItemValid(slot, stack);
+        }
     }
 
     @Override
@@ -126,11 +187,21 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.put("inventory", inventory.serializeNBT());
+        for (int i = 0; i < 9; i++) {
+            if (lastInsertSide[i] != null) {
+                tag.putInt("lastSide" + i, lastInsertSide[i].ordinal());
+            }
+        }
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
         inventory.deserializeNBT(tag.getCompound("inventory"));
+        for (int i = 0; i < 9; i++) {
+            if (tag.contains("lastSide" + i)) {
+                lastInsertSide[i] = Direction.values()[tag.getInt("lastSide" + i)];
+            }
+        }
     }
 }
