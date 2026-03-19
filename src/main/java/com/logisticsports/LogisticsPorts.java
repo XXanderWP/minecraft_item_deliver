@@ -31,6 +31,8 @@ public class LogisticsPorts {
         MinecraftForge.EVENT_BUS.register(this);
         ModRegistry.MENUS.register(modEventBus);
         ModRegistry.CREATIVE_TABS.register(modEventBus);
+        
+        UpdateChecker.init();
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

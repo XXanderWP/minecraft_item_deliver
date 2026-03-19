@@ -43,5 +43,10 @@
   "block.logisticsports.output_port": "Output Port",
   "config.logisticsports.render_indicator": "Render Indicator",
   "config.logisticsports.rotate_indicator": "Rotate Indicator",
-  "config.logisticsports.render_distance": "Indicator Render Distance"
+  "config.logisticsports.render_distance": "Indicator Render Distance",
+  "config.logisticsports.check_updates": "Check for Updates",
+  "config.logisticsports.update_check_interval": "Update Check Interval (min)",
+  "chat.logisticsports.update_available": "A new version (%s) is available!",
+  "chat.logisticsports.download": "Download",
+  "chat.logisticsports.click_to_open": "Click to open GitHub releases"
 }

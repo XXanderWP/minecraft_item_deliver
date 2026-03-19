@@ -43,5 +43,10 @@
   "block.logisticsports.output_port": "Порт выдачи",
   "config.logisticsports.render_indicator": "Отображать индикатор",
   "config.logisticsports.rotate_indicator": "Вращать индикатор",
-  "config.logisticsports.render_distance": "Дистанция прорисовки индикатора"
+  "config.logisticsports.render_distance": "Дистанция прорисовки индикатора",
+  "config.logisticsports.check_updates": "Проверять обновления",
+  "config.logisticsports.update_check_interval": "Интервал проверки обновлений (мин)",
+  "chat.logisticsports.update_available": "Доступна новая версия (%s)!",
+  "chat.logisticsports.download": "Скачать",
+  "chat.logisticsports.click_to_open": "Нажмите, чтобы открыть страницу релизов в GitHub"
 }
