@@ -65,16 +65,37 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         
         if (menu.blockEntity.isMultiport) {
             orderButton.visible = false;
+            multiportOrderButtons.forEach(this::removeWidget);
             multiportOrderButtons.clear();
             int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+            
+            // Кнопки для предметов
             for (int i = 0; i < activeRecipeSlots; i++) {
                 final int slot = i;
+                ItemStack stack = menu.blockEntity.recipe.get(i);
+                if (stack.isEmpty()) continue;
+
                 Button btn = Button.builder(Component.literal(""), b -> placeMultiportOrder(slot))
-                        .pos(leftPos + BG_WIDTH - 25, topPos + 24 + i * 21 + 3)
+                        .pos(leftPos + BG_WIDTH - 25, topPos + 24)
                         .size(14, 14)
                         .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("config.logisticsports.order")))
                         .build();
-                btn.visible = !menu.blockEntity.recipe.get(i).isEmpty();
+                addRenderableWidget(btn);
+                multiportOrderButtons.add(btn);
+            }
+            
+            // Кнопки для жидкостей
+            for (int i = 0; i < activeFluidSlots; i++) {
+                final int slot = activeRecipeSlots + i;
+                FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+                if (fluid.isEmpty()) continue;
+
+                Button btn = Button.builder(Component.literal(""), b -> placeMultiportOrder(slot))
+                        .pos(leftPos + BG_WIDTH - 25, topPos + 24)
+                        .size(14, 14)
+                        .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("config.logisticsports.order")))
+                        .build();
                 addRenderableWidget(btn);
                 multiportOrderButtons.add(btn);
             }
@@ -120,25 +141,30 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
     }
 
     private int getListHeight() {
-        int batches = 1;
-        try {
-            batches = Integer.parseInt(batchesField.getValue());
-            if (batches < 1) batches = 1;
-        } catch (NumberFormatException ignored) {}
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
 
-        int count = 0;
+        int itemsCount;
+        int fluidsCount = 0;
+        
         if (menu.blockEntity.isMultiport) {
-            count = AccessPortBlockEntity.getRecipeSlots();
-        } else {
-            count = getGroupedRecipe(batches).size();
-            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+            itemsCount = 0;
+            for (ItemStack s : menu.blockEntity.recipe) {
+                if (!s.isEmpty()) itemsCount++;
+            }
             for (int i = 0; i < activeFluidSlots; i++) {
                 if (!menu.blockEntity.fluidsRecipe.get(i).isEmpty()) {
-                    count++;
+                    fluidsCount++;
+                }
+            }
+        } else {
+            itemsCount = getGroupedRecipe(1).size();
+            for (int i = 0; i < activeFluidSlots; i++) {
+                if (!menu.blockEntity.fluidsRecipe.get(i).isEmpty()) {
+                    fluidsCount++;
                 }
             }
         }
-        return count * 21;
+        return (itemsCount + fluidsCount) * 21;
     }
 
     private int getViewHeight() {
@@ -218,9 +244,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         if (menu.blockEntity.isMultiport) {
             grouped = new ArrayList<>();
             for (ItemStack s : menu.blockEntity.recipe) {
-                if (s.isEmpty()) {
-                    grouped.add(ItemStack.EMPTY);
-                } else {
+                if (!s.isEmpty()) {
                     ItemStack copy = s.copy();
                     copy.setCount(s.getCount() * batches);
                     grouped.add(copy);
@@ -244,65 +268,82 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         g.enableScissor(x + 4, viewportY, x + BG_WIDTH - 4, viewportY + viewHeight);
 
         int currentY = listY - (int)scrollAmount;
+        int rowIndex = 0;
 
-        if (grouped.isEmpty() || (menu.blockEntity.isMultiport && menu.blockEntity.recipe.stream().allMatch(ItemStack::isEmpty))) {
+        boolean noItems = grouped.isEmpty();
+        boolean noFluids = true;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        for (int i = 0; i < activeFluidSlots; i++) {
+            if (!menu.blockEntity.fluidsRecipe.get(i).isEmpty()) {
+                noFluids = false;
+                break;
+            }
+        }
+
+        if (noItems && noFluids) {
             g.drawString(font, Component.translatable("config.logisticsports.recipe_is_empty"), x + 8, currentY + 6, 0xFF888888, false);
         } else {
             for (int i = 0; i < grouped.size(); i++) {
                 var stack = grouped.get(i);
-                int rowColor = (i % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
+                if (stack.isEmpty()) continue;
+
+                int rowColor = (rowIndex % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
                 g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
 
-                if (!stack.isEmpty()) {
-                    g.renderItem(stack, x + 5, currentY + 2);
+                g.renderItem(stack, x + 5, currentY + 2);
 
-                    Component name = stack.getHoverName();
-                    g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
+                Component name = stack.getHoverName();
+                g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
 
-                    // Нужно x количество
-                    int needed = stack.getCount();
-                    // Доступно — запрашиваем с сервера через данные блока
-                    int avail = menu.blockEntity.getAvailableCount(stack);
-                    int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-                    g.drawString(font, Convert.ShowAmountString(needed, false) + " (" + Convert.ShowAmountString(avail, true) + ")",
-                            x + 26, currentY + 11, availColor, false);
-                    
-                    if (menu.blockEntity.isMultiport) {
-                        // Стрелочка/иконка на кнопке заказа
+                // Нужно x количество
+                int needed = stack.getCount();
+                // Доступно — запрашиваем с сервера через данные блока
+                int avail = menu.blockEntity.getAvailableCount(stack);
+                int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
+                g.drawString(font, Convert.ShowAmountString(needed, false) + " (" + Convert.ShowAmountString(avail, true) + ")",
+                        x + 26, currentY + 11, availColor, false);
+                
+                if (menu.blockEntity.isMultiport) {
+                    // Стрелочка/иконка на кнопке заказа (только если ресурсов достаточно)
+                    if (avail >= needed) {
                         g.drawString(font, "→", x + BG_WIDTH - 21, currentY + 6, 0xFF222222, false);
                     }
                 }
 
                 currentY += 21;
+                rowIndex++;
             }
-        }
 
-        // Жидкость
-        if (!menu.blockEntity.isMultiport) {
-            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
-            int fluidIndexInList = grouped.size();
+            // Жидкость
             for (int i = 0; i < activeFluidSlots; i++) {
                 FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
-                if (!fluid.isEmpty()) {
-                    int rowColor = (fluidIndexInList % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
-                    g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
+                if (fluid.isEmpty()) continue;
 
-                    renderFluid(g, fluid, x + 5, currentY + 2);
+                int rowColor = (rowIndex % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
+                g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
 
-                    Component name = fluid.getDisplayName();
-                    g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
+                renderFluid(g, fluid, x + 5, currentY + 2);
 
-                    // Нужно x количество (mB)
-                    int needed = fluid.getAmount() * batches;
-                    // Доступно — запрашиваем с сервера через данные блока
-                    int avail = menu.blockEntity.getAvailableFluidCount(fluid);
-                    int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-                    g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
-                            x + 26, currentY + 11, availColor, false);
+                Component name = fluid.getDisplayName();
+                g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
 
-                    currentY += 21;
-                    fluidIndexInList++;
+                // Нужно x количество (mB)
+                int needed = fluid.getAmount() * batches;
+                // Доступно — запрашиваем с сервера через данные блока
+                int avail = menu.blockEntity.getAvailableFluidCount(fluid);
+                int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
+                g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
+                        x + 26, currentY + 11, availColor, false);
+
+                if (menu.blockEntity.isMultiport) {
+                    // Стрелочка/иконка на кнопке заказа (только если ресурсов достаточно)
+                    if (avail >= needed) {
+                        g.drawString(font, "→", x + BG_WIDTH - 21, currentY + 6, 0xFF222222, false);
+                    }
                 }
+
+                currentY += 21;
+                rowIndex++;
             }
         }
 
@@ -339,13 +380,55 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
     @Override
     public void render(GuiGraphics g, int mx, int my, float partialTick) {
         if (menu.blockEntity.isMultiport) {
+            int batches = 1;
+            try {
+                batches = Integer.parseInt(batchesField.getValue());
+                if (batches < 1) batches = 1;
+            } catch (NumberFormatException ignored) {}
+
             int viewportY = topPos + 24;
             int viewHeight = getViewHeight();
-            for (int i = 0; i < multiportOrderButtons.size(); i++) {
-                Button btn = multiportOrderButtons.get(i);
-                int btnY = viewportY + i * 21 + 3 - (int)scrollAmount;
-                btn.setY(btnY);
-                btn.visible = !menu.blockEntity.recipe.get(i).isEmpty() && btnY >= viewportY && (btnY + 14) <= (viewportY + viewHeight);
+            int currentBtnIdx = 0;
+            
+            int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+
+            // Проходим по непустым предметам
+            for (int i = 0; i < activeRecipeSlots; i++) {
+                ItemStack stack = menu.blockEntity.recipe.get(i);
+                if (stack.isEmpty()) continue;
+                
+                if (currentBtnIdx < multiportOrderButtons.size()) {
+                    Button btn = multiportOrderButtons.get(currentBtnIdx);
+                    int btnY = viewportY + currentBtnIdx * 21 + 3 - (int)scrollAmount;
+                    btn.setY(btnY);
+                    
+                    int needed = stack.getCount() * batches;
+                    int avail = menu.blockEntity.getAvailableCount(stack);
+                    boolean canOrder = avail >= needed;
+                    
+                    btn.visible = canOrder && btnY >= viewportY && (btnY + 14) <= (viewportY + viewHeight);
+                    currentBtnIdx++;
+                }
+            }
+            
+            // Проходим по непустым жидкостям
+            for (int i = 0; i < activeFluidSlots; i++) {
+                FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+                if (fluid.isEmpty()) continue;
+                
+                if (currentBtnIdx < multiportOrderButtons.size()) {
+                    Button btn = multiportOrderButtons.get(currentBtnIdx);
+                    int btnY = viewportY + currentBtnIdx * 21 + 3 - (int)scrollAmount;
+                    btn.setY(btnY);
+                    
+                    int needed = fluid.getAmount() * batches;
+                    int avail = menu.blockEntity.getAvailableFluidCount(fluid);
+                    boolean canOrder = avail >= needed;
+                    
+                    btn.visible = canOrder && btnY >= viewportY && (btnY + 14) <= (viewportY + viewHeight);
+                    currentBtnIdx++;
+                }
             }
         }
         renderBackground(g);

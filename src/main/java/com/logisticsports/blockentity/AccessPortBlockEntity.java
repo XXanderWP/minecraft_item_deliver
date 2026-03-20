@@ -88,21 +88,31 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         if (level == null || level.isClientSide) return;
 
         // Собираем список нужных предметов и жидкостей с учётом партий
-        List<ItemStack> needed;
+        List<ItemStack> needed = new ArrayList<>();
         List<FluidStack> neededFluids = new ArrayList<>();
 
         int activeRecipeSlots = getRecipeSlots();
-        if (isMultiport && slotIndex >= 0 && slotIndex < activeRecipeSlots) {
-            needed = new ArrayList<>();
-            ItemStack stack = recipe.get(slotIndex);
-            if (!stack.isEmpty()) {
-                ItemStack copy = stack.copy();
-                copy.setCount(copy.getCount() * batches);
-                needed.add(copy);
+        int activeFluidSlots = getFluidRecipeSlots();
+
+        if (isMultiport && slotIndex >= 0) {
+            if (slotIndex < activeRecipeSlots) {
+                ItemStack stack = recipe.get(slotIndex);
+                if (!stack.isEmpty()) {
+                    ItemStack copy = stack.copy();
+                    copy.setCount(copy.getCount() * batches);
+                    needed.add(copy);
+                }
+            } else if (slotIndex < activeRecipeSlots + activeFluidSlots) {
+                int fluidIdx = slotIndex - activeRecipeSlots;
+                FluidStack fluid = fluidsRecipe.get(fluidIdx);
+                if (!fluid.isEmpty()) {
+                    FluidStack copy = fluid.copy();
+                    copy.setAmount(copy.getAmount() * batches);
+                    neededFluids.add(copy);
+                }
             }
         } else {
             needed = buildOrderList(batches);
-            int activeFluidSlots = getFluidRecipeSlots();
             for (int i = 0; i < activeFluidSlots; i++) {
                 FluidStack stack = fluidsRecipe.get(i);
                 if (!stack.isEmpty()) {
