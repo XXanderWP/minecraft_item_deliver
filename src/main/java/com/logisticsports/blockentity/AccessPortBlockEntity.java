@@ -43,6 +43,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public int frequency = 0;
     // Номер интегральной схемы GregTech (0-24)
     public int gtcCircuit = 0;
+    // Режим мультипорта
+    public boolean isMultiport = false;
     // Поведение при нехватке: true = только если всё есть, false = выдавать что есть
     public boolean requireAll = true;
     public long lastRefreshTime = 0;
@@ -71,13 +73,30 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     private boolean lastRedstoneState = false;
 
     public void placeOrder(@Nullable Player player, int batches) {
+        placeOrder(player, batches, -1);
+    }
+
+    public void placeOrder(@Nullable Player player, int batches, int slotIndex) {
         if (level == null || level.isClientSide) return;
 
         // Собираем список нужных предметов и жидкостей с учётом партий
-        List<ItemStack> needed = buildOrderList(batches);
-        FluidStack neededFluid = fluidRecipe.copy();
-        if (!neededFluid.isEmpty()) {
-            neededFluid.setAmount(neededFluid.getAmount() * batches);
+        List<ItemStack> needed;
+        FluidStack neededFluid = FluidStack.EMPTY;
+
+        if (isMultiport && slotIndex >= 0 && slotIndex < 9) {
+            needed = new ArrayList<>();
+            ItemStack stack = recipe.get(slotIndex);
+            if (!stack.isEmpty()) {
+                ItemStack copy = stack.copy();
+                copy.setCount(copy.getCount() * batches);
+                needed.add(copy);
+            }
+        } else {
+            needed = buildOrderList(batches);
+            neededFluid = fluidRecipe.copy();
+            if (!neededFluid.isEmpty()) {
+                neededFluid.setAmount(neededFluid.getAmount() * batches);
+            }
         }
 
         if (needed.isEmpty() && neededFluid.isEmpty()) {
@@ -164,6 +183,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     public void onNeighborUpdate(boolean hasSignal) {
+        if (isMultiport) return; // Редстоун не работает для мультипорт блока
         if (hasSignal && !lastRedstoneState) {
             placeOrder(null, 1);
             setChanged();
@@ -506,6 +526,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     @Override
     public Component getDisplayName() {
+        if (isMultiport) {
+            return Component.translatable("block.logisticsports.multiport_access");
+        }
         return Component.translatable("block.logisticsports.access_port");
     }
 
@@ -513,6 +536,12 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     public AbstractContainerMenu createMenu(int containerId, Inventory inventory, Player player) {
         return new AccessPortMenu(containerId, inventory, this);
+    }
+
+    public void syncToClient() {
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     @Override
@@ -524,6 +553,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
         tag.putInt("frequency", frequency);
         tag.putInt("gtcCircuit", gtcCircuit);
+        tag.putBoolean("isMultiport", isMultiport);
         tag.putBoolean("requireAll", requireAll);
         tag.putBoolean("packageMode", packageMode);
         tag.putString("recipient", recipient);
@@ -546,6 +576,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
         frequency = tag.getInt("frequency");
         gtcCircuit = tag.getInt("gtcCircuit");
+        isMultiport = tag.getBoolean("isMultiport");
         requireAll = tag.getBoolean("requireAll");
         packageMode = tag.getBoolean("packageMode");
         recipient = tag.getString("recipient");

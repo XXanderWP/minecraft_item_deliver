@@ -91,7 +91,7 @@ public class AccessPortBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof AccessPortBlockEntity port)) return InteractionResult.PASS;
 
-        if (player.isShiftKeyDown()) {
+        if (player.isShiftKeyDown() || port.isMultiport) {
             port.refreshAvailableCache();
             NetworkHooks.openScreen((ServerPlayer) player, port, buf -> buf.writeBlockPos(pos));
         } else {

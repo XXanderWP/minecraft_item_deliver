@@ -27,6 +27,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     private EditBox gtcCircuitField;
     private EditBox recipientField;
     private Button packageModeButton;
+    private Button multiportButton;
     private final List<String> filteredSuggestions = new ArrayList<>();
     private boolean showSuggestions = false;
     private int scrollOffset = 0;
@@ -99,6 +100,19 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                 }
         ).pos(leftPos + 95, topPos + 74).size(98, 14).build());
 
+        // Кнопка режима мультипорта
+        multiportButton = Button.builder(
+                Component.translatable(menu.blockEntity.isMultiport ? "config.logisticsports.yes" : "config.logisticsports.no"),
+                btn -> {
+                    boolean newVal = !menu.blockEntity.isMultiport;
+                    menu.blockEntity.isMultiport = newVal;
+                    btn.setMessage(Component.translatable(newVal ? "config.logisticsports.yes" : "config.logisticsports.no"));
+                    com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
+                            new com.logisticsports.network.PacketUpdateMultiportMode(newVal));
+                }
+        ).pos(leftPos + 150, topPos + 91).size(40, 14).build();
+        addRenderableWidget(multiportButton);
+
         // Кнопка упаковки посылки
         packageModeButton = Button.builder(
                 Component.translatable(menu.blockEntity.packageMode ? "config.logisticsports.yes" : "config.logisticsports.no"),
@@ -111,12 +125,12 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                             new com.logisticsports.network.PacketUpdatePackageMode(
                                     menu.blockEntity.getBlockPos(), newVal));
                 }
-        ).pos(leftPos + 150, topPos + 91).size(40, 14).build();
+        ).pos(leftPos + 150, topPos + 107).size(40, 14).build();
         addRenderableWidget(packageModeButton);
 
         // Поле адресата
         recipientField = new EditBox(font,
-                leftPos + 8, topPos + 113,
+                leftPos + 8, topPos + 135,
                 150, 12, Component.literal(""));
         recipientField.setValue(menu.blockEntity.recipient);
         recipientField.setMaxLength(64);
@@ -149,6 +163,16 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             boolean visible = menu.blockEntity.packageMode;
             recipientField.setVisible(visible);
             if (!visible) showSuggestions = false;
+
+            // Если включен режим упаковки - сдвигаем элементы
+//            if (visible) {
+//                recipientField.setY(topPos + 135);
+//                packageModeButton.setY(topPos + 91);
+//                multiportButton.setY(topPos + 107);
+//            } else {
+//                packageModeButton.setY(topPos + 91);
+//                multiportButton.setY(topPos + 107);
+//            }
         }
     }
 
@@ -328,8 +352,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         // При нехватке
         g.drawString(font, Component.translatable("config.logisticsports.shortage"), x + 8, y + 77, 0xFF222222, false);
 
+        // Режим мультипорта
+        g.drawString(font, Component.translatable("config.logisticsports.multiport"), x + 8, y + 94, 0xFF222222, false);
+
         // Упаковывать посылку
-        g.drawString(font, Component.translatable("config.logisticsports.pack"), x + 8, y + 94, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.pack"), x + 8, y + 107, 0xFF222222, false);
 
         // GregTech текст
         if (gtcCircuitField != null && gtcCircuitField.isVisible()) {
@@ -338,7 +365,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
         // Адрес получателя (только если packageMode)
         if (menu.blockEntity.packageMode) {
-            g.drawString(font, Component.translatable("config.logisticsports.recipient"), x + 8, y + 103, 0xFF222222, false);
+            g.drawString(font, Component.translatable("config.logisticsports.recipient"), x + 8, y + 123, 0xFF222222, false);
         }
 
         // Разделитель перед инвентарём — прикреплён к инвентарю

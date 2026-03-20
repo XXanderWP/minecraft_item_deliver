@@ -13,6 +13,14 @@ A Minecraft mod that introduces a flexible logistics system for item and fluid t
 - The control center for your logistics requests.
 - **Recipe Configuration**: Set up a list of required items and one fluid in the settings menu (Shift + Right Click).
 - **Ordering**: Request the configured items and fluids from available **Output Ports** on the same frequency.
+- **Redstone Control**: An order can be triggered by a redstone signal (one pulse per order).
+- **Multiport Mode**:
+  - Can be toggled in the settings menu.
+  - Changes the block name to **Access Multiport**.
+  - Disables fluid settings (only items).
+  - All 9 slots remain available, but each item can be ordered individually via separate "Order" buttons in the UI.
+  - Right-click always opens the UI instead of placing a quick order.
+  - Redstone signals do **not** trigger orders in this mode.
 - **Status Indicators**: Changes color (Green for success, Red for failure) to show the order's progress.
 - **Indicator Item**: Displays the "result" item on its face to identify different ports at a glance.
 

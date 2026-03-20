@@ -30,12 +30,14 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         this.imageHeight = BG_HEIGHT;
     }
 
+    private Button orderButton;
+
     @Override
     protected void init() {
         super.init();
 
         batchesField = new EditBox(font,
-                leftPos + 50, topPos + BG_HEIGHT - 22,
+                leftPos + 71, topPos + BG_HEIGHT - 22,
                 30, 12, Component.literal("1"));
         batchesField.setValue("1");
         batchesField.setFilter(s -> s.matches("[1-9]\\d*") || s.equals(""));
@@ -51,10 +53,35 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         ).pos(leftPos + BG_WIDTH - 68, topPos + 5).size(62, 14).build());
 
         // Кнопка заказать
-        addRenderableWidget(Button.builder(
+        orderButton = Button.builder(
                 Component.translatable("config.logisticsports.order"),
                 btn -> placeOrder()
-        ).pos(leftPos + BG_WIDTH - 82, topPos + BG_HEIGHT - 22).size(76, 14).build());
+        ).pos(leftPos + BG_WIDTH - 82, topPos + BG_HEIGHT - 23).size(76, 14).build();
+        addRenderableWidget(orderButton);
+        
+        if (menu.blockEntity.isMultiport) {
+            orderButton.visible = false;
+            for (int i = 0; i < 9; i++) {
+                final int slot = i;
+                addRenderableWidget(Button.builder(Component.literal(""), btn -> placeMultiportOrder(slot))
+                        .pos(leftPos + BG_WIDTH - 25, topPos + 24 + i * 21 + 3)
+                        .size(14, 14)
+                        .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("config.logisticsports.order")))
+                        .build()).visible = !menu.blockEntity.recipe.get(i).isEmpty();
+            }
+        }
+    }
+
+    private void placeMultiportOrder(int slotIndex) {
+        int batches = 1;
+        try {
+            batches = Integer.parseInt(batchesField.getValue());
+            if (batches < 1) batches = 1;
+        } catch (NumberFormatException ignored) {}
+        com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
+                new com.logisticsports.network.PacketPlaceMultiportOrder(
+                        menu.blockEntity.getBlockPos(), batches, slotIndex)
+        );
     }
 
     @Override
@@ -130,7 +157,10 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         g.fill(x + BG_WIDTH - 1, y, x + BG_WIDTH, y + BG_HEIGHT, 0xFF444444);
 
         // Заголовок
-        g.drawString(font, Component.translatable("block.logisticsports.access_port"), x + 8, y + 8, 0xFF222222, false);
+        Component title = menu.blockEntity.isMultiport ? 
+                Component.translatable("block.logisticsports.multiport_access") : 
+                Component.translatable("block.logisticsports.access_port");
+        g.drawString(font, title, x + 8, y + 8, 0xFF222222, false);
         g.fill(x + 4, y + 18, x + BG_WIDTH - 4, y + 19, 0xFF888888);
 
         // Список предметов
@@ -140,10 +170,25 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             if (batches < 1) batches = 1;
         } catch (NumberFormatException ignored) {}
 
-        List<ItemStack> grouped = getGroupedRecipe(batches);
+        List<ItemStack> grouped;
+        if (menu.blockEntity.isMultiport) {
+            grouped = new ArrayList<>();
+            for (ItemStack s : menu.blockEntity.recipe) {
+                if (s.isEmpty()) {
+                    grouped.add(ItemStack.EMPTY);
+                } else {
+                    ItemStack copy = s.copy();
+                    copy.setCount(s.getCount() * batches);
+                    grouped.add(copy);
+                }
+            }
+        } else {
+            grouped = getGroupedRecipe(batches);
+        }
+
         int listY = y + 24;
 
-        if (grouped.isEmpty()) {
+        if (grouped.isEmpty() || (menu.blockEntity.isMultiport && menu.blockEntity.recipe.stream().allMatch(ItemStack::isEmpty))) {
             g.drawString(font, Component.translatable("config.logisticsports.recipe_is_empty"), x + 8, y + 30, 0xFF888888, false);
         } else {
             for (int i = 0; i < grouped.size(); i++) {
@@ -151,43 +196,52 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
                 int rowColor = (i % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
                 g.fill(x + 4, listY, x + BG_WIDTH - 4, listY + 20, rowColor);
 
-                g.renderItem(stack, x + 5, listY + 2);
+                if (!stack.isEmpty()) {
+                    g.renderItem(stack, x + 5, listY + 2);
 
-                Component name = stack.getHoverName();
-                g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
+                    Component name = stack.getHoverName();
+                    g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
 
-                // Нужно x количество
-                int needed = stack.getCount();
-                // Доступно — запрашиваем с сервера через данные блока
-                int avail = menu.blockEntity.getAvailableCount(stack);
-                int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-                g.drawString(font, Convert.ShowAmountString(needed, false) + " (" + Convert.ShowAmountString(avail, true) + ")",
-                        x + 26, listY + 11, availColor, false);
+                    // Нужно x количество
+                    int needed = stack.getCount();
+                    // Доступно — запрашиваем с сервера через данные блока
+                    int avail = menu.blockEntity.getAvailableCount(stack);
+                    int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
+                    g.drawString(font, Convert.ShowAmountString(needed, false) + " (" + Convert.ShowAmountString(avail, true) + ")",
+                            x + 26, listY + 11, availColor, false);
+                    
+                    if (menu.blockEntity.isMultiport) {
+                        // Стрелочка/иконка на кнопке заказа
+                        g.drawString(font, "→", x + BG_WIDTH - 21, listY + 6, 0xFF222222, false);
+                    }
+                }
 
                 listY += 21;
             }
         }
 
         // Жидкость
-        FluidStack fluid = menu.blockEntity.fluidRecipe;
-        if (!fluid.isEmpty()) {
-            int rowColor = (grouped.size() % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
-            g.fill(x + 4, listY, x + BG_WIDTH - 4, listY + 20, rowColor);
+        if (!menu.blockEntity.isMultiport) {
+            FluidStack fluid = menu.blockEntity.fluidRecipe;
+            if (!fluid.isEmpty()) {
+                int rowColor = (grouped.size() % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
+                g.fill(x + 4, listY, x + BG_WIDTH - 4, listY + 20, rowColor);
 
-            renderFluid(g, fluid, x + 5, listY + 2);
+                renderFluid(g, fluid, x + 5, listY + 2);
 
-            Component name = fluid.getDisplayName();
-            g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
+                Component name = fluid.getDisplayName();
+                g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
 
-            // Нужно x количество (mB)
-            int needed = fluid.getAmount() * batches;
-            // Доступно — запрашиваем с сервера через данные блока
-            int avail = menu.blockEntity.getAvailableFluidCount(fluid);
-            int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-            g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
-                    x + 26, listY + 11, availColor, false);
+                // Нужно x количество (mB)
+                int needed = fluid.getAmount() * batches;
+                // Доступно — запрашиваем с сервера через данные блока
+                int avail = menu.blockEntity.getAvailableFluidCount(fluid);
+                int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
+                g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
+                        x + 26, listY + 11, availColor, false);
 
-            listY += 21;
+                listY += 21;
+            }
         }
 
         // Индикатор (результат) — над нижней панелью
@@ -206,7 +260,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
         // Нижняя панель
         g.fill(x + 4, y + BG_HEIGHT - 30, x + BG_WIDTH - 4, y + BG_HEIGHT - 29, 0xFF888888);
-        g.drawString(font, Component.translatable("config.logisticsports.count"), x + 8, y + BG_HEIGHT - 22, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.count"), x + 8, y + BG_HEIGHT - 22 + 2, 0xFF222222, false);
     }
 
     @Override

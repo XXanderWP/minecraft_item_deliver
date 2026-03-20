@@ -35,7 +35,11 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
             LAST_REFRESH_CLIENT.put(pos, now);
             ModNetwork.CHANNEL.sendToServer(new PacketRefreshAvailableCache(pos));
         }
-                
+
+        if(be.isMultiport) {
+            tooltip.add(Component.translatable("block.logisticsports.multiport_access"));
+        }
+
         // Частота
         tooltip.add(Component.translatable("config.logisticsports.frequency_tooltip", be.frequency));
 
@@ -50,7 +54,7 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
         // Рецепт
         List<ItemStack> grouped = getGrouped(be);
         if (!grouped.isEmpty() || !be.fluidRecipe.isEmpty()) {
-            tooltip.add(Component.translatable("config.logisticsports.require_tooltip"));
+            tooltip.add(Component.translatable( be.isMultiport ? "config.logisticsports.require_multiple_tooltip" : "config.logisticsports.require_tooltip"));
             for (ItemStack stack : grouped) {
                 int avail = be.getAvailableCount(stack);
                 int needed = stack.getCount();
@@ -58,7 +62,7 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
                 
                 tooltip.add(Component.literal("  ").append(stack.getHoverName()).append(Component.literal(" §f" + Convert.ShowAmountString(needed, false) + " " + color + "(" + Convert.ShowAmountString(avail, true) + ")")));
             }
-            if (!be.fluidRecipe.isEmpty()) {
+            if (!be.fluidRecipe.isEmpty() && !be.isMultiport) {
                 int avail = be.getAvailableFluidCount(be.fluidRecipe);
                 int needed = be.fluidRecipe.getAmount();
                 String color = avail >= needed ? "§a" : "§c";

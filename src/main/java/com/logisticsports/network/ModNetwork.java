@@ -96,5 +96,19 @@ public class ModNetwork {
                 PacketRefreshAvailableCache::decode,
                 PacketRefreshAvailableCache::handle
         );
+
+        CHANNEL.registerMessage(id++,
+                PacketUpdateMultiportMode.class,
+                PacketUpdateMultiportMode::encode,
+                PacketUpdateMultiportMode::decode,
+                PacketUpdateMultiportMode::handle
+        );
+
+        CHANNEL.registerMessage(id++,
+                PacketPlaceMultiportOrder.class,
+                PacketPlaceMultiportOrder::encode,
+                PacketPlaceMultiportOrder::decode,
+                PacketPlaceMultiportOrder::handle
+        );
     }
 }
