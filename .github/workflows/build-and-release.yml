@@ -64,8 +64,8 @@ jobs:
           echo "Debug: VERSION=$VERSION, MC_VERSION=$MC_VERSION"
           ls -R build/libs/
           
-          # Collect all JAR files from build/libs/
-          JAR_FILES=$(find build/libs/ -maxdepth 1 -name "*.jar" | tr '\n' ' ')
+          # Collect only the -all.jar file from build/libs/
+          JAR_FILES=$(find build/libs/ -maxdepth 1 -name "*-all.jar" | tr '\n' ' ')
           
           if [ -n "$JAR_FILES" ]; then
             gh release create "$VERSION" $JAR_FILES --title "Release $VERSION" --notes "Automated release for version $VERSION (Minecraft $MC_VERSION)"
