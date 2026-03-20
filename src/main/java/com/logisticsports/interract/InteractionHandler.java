@@ -59,12 +59,16 @@ public class InteractionHandler {
                     
                     if (beTag.contains("EncodedRequest")) {
                         CompoundTag encodedRequest = beTag.getCompound("EncodedRequest");
+
+                        // Список предметов, который будем наполнять из разных возможных структур
+                        net.minecraft.nbt.ListTag itemsList = new net.minecraft.nbt.ListTag();
+
+                        // СТАРАЯ структура: EncodedRequest -> OrderedStacks -> Entries[], где внутри entry хранится Item{}
                         if (encodedRequest.contains("OrderedStacks")) {
                             CompoundTag orderedStacks = encodedRequest.getCompound("OrderedStacks");
                             if (orderedStacks.contains("Entries")) {
                                 net.minecraft.nbt.ListTag entries = orderedStacks.getList("Entries", net.minecraft.nbt.Tag.TAG_COMPOUND);
-                                net.minecraft.nbt.ListTag itemsList = new net.minecraft.nbt.ListTag();
-                                
+
                                 for (int i = 0; i < entries.size(); i++) {
                                     CompoundTag entry = entries.getCompound(i);
                                     if (entry.contains("Item")) {
@@ -77,25 +81,53 @@ public class InteractionHandler {
                                         itemsList.add(itemTag);
                                     }
                                 }
+                            }
+                        }
 
-                                if (!itemsList.isEmpty()) {
-                                    CompoundTag stackTag = stack.getOrCreateTag();
-                                    CompoundTag accessPortBETag = stackTag.getCompound("BlockEntityTag");
-                                    if (accessPortBETag == null) accessPortBETag = new CompoundTag();
-                                    
-                                    accessPortBETag.put("Items", itemsList);
-                                    stackTag.put("BlockEntityTag", accessPortBETag);
-                                    
-                                    player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", 
-                                            Component.translatable("config.logisticsports.action.recipe_copied")));
-                                    
-                                    AllSoundEvents.CONFIRM.playOnServer(level, pos);
-                                    
-                                    event.setCanceled(true);
-                                    event.setCancellationResult(InteractionResult.SUCCESS);
-                                    return;
+                        // НОВАЯ структура: EncodedRequest -> Entries[], где внутри entry хранится key{} с предметом
+                        if (encodedRequest.contains("Entries")) {
+                            net.minecraft.nbt.ListTag entries = encodedRequest.getList("Entries", net.minecraft.nbt.Tag.TAG_COMPOUND);
+
+                            for (int i = 0; i < entries.size(); i++) {
+                                CompoundTag entry = entries.getCompound(i);
+                                CompoundTag itemTag = null;
+
+                                // В новой структуре ключ предмета чаще всего под полем "key"
+                                if (entry.contains("key")) {
+                                    itemTag = entry.getCompound("key").copy();
+                                } else if (entry.contains("Item")) {
+                                    // На всякий случай поддерживаем и возможное поле Item
+                                    itemTag = entry.getCompound("Item").copy();
+                                }
+
+                                if (itemTag != null) {
+                                    // Количество в новой структуре также приходит как Amount в самом entry
+                                    if (entry.contains("Amount")) {
+                                        itemTag.putByte("Count", (byte) entry.getInt("Amount"));
+                                    }
+                                    itemTag.putByte("Slot", (byte) i);
+                                    itemsList.add(itemTag);
                                 }
                             }
+                        }
+
+                        // Если мы что-то собрали — записываем в предмет Access Port в руке
+                        if (!itemsList.isEmpty()) {
+                            CompoundTag stackTag = stack.getOrCreateTag();
+                            CompoundTag accessPortBETag = stackTag.getCompound("BlockEntityTag");
+                            if (accessPortBETag == null) accessPortBETag = new CompoundTag();
+
+                            accessPortBETag.put("Items", itemsList);
+                            stackTag.put("BlockEntityTag", accessPortBETag);
+
+                            player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat",
+                                    Component.translatable("config.logisticsports.action.recipe_copied")));
+
+                            AllSoundEvents.CONFIRM.playOnServer(level, pos);
+
+                            event.setCanceled(true);
+                            event.setCancellationResult(InteractionResult.SUCCESS);
+                            return;
                         }
                     }
                 }
