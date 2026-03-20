@@ -4,25 +4,50 @@ import com.logisticsports.blockentity.TransportUnpackerBlockEntity;
 import com.logisticsports.registry.ModRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public class TransportUnpackerBlock extends BaseEntityBlock {
 
+    public static final IntegerProperty STATUS = IntegerProperty.create("status", 0, 2);
+
     public TransportUnpackerBlock(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        level.setBlock(pos, state.setValue(STATUS, 0), 3);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        // Блок смотрит на игрока (противоположная сторона от взгляда)
+        return this.defaultBlockState()
+                .setValue(STATUS, 0);
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(STATUS);
     }
 
     @Nullable

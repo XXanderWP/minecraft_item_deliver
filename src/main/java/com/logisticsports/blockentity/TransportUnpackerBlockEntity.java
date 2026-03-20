@@ -1,5 +1,6 @@
 package com.logisticsports.blockentity;
 
+import com.logisticsports.block.AccessPortBlock;
 import com.logisticsports.item.TransportReservoirItem;
 import com.logisticsports.registry.ModRegistry;
 import net.minecraft.core.BlockPos;
@@ -40,7 +41,8 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
 
     public static void tick(Level level, BlockPos pos, BlockState state, TransportUnpackerBlockEntity be) {
         if (level.isClientSide) return;
-
+        boolean isEmpty = true;
+        boolean isMove = false;
         // 1. Пытаемся распаковать резервуары
         for (int i = 0; i < be.inventory.getSlots(); i++) {
             ItemStack stack = be.inventory.getStackInSlot(i);
@@ -53,13 +55,16 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                         fluid.shrink(drained);
                         TransportReservoirItem.setFluid(stack, fluid);
                         be.setChanged();
+                        isMove = true;
                     }
+                    isEmpty = false;
                 }
                 
                 // Если после слива жидкости (или изначально) резервуар пуст - удаляем его
                 if (TransportReservoirItem.getFluid(stack).isEmpty()) {
                     be.inventory.setStackInSlot(i, ItemStack.EMPTY);
                     be.setChanged();
+                    isMove = true;
                 }
             }
         }
@@ -68,7 +73,7 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
         for (int i = 0; i < be.inventory.getSlots(); i++) {
             ItemStack stack = be.inventory.getStackInSlot(i);
             if (stack.isEmpty() || stack.getItem() instanceof TransportReservoirItem) continue;
-
+            isEmpty = false;
             // Пытаемся вытолкнуть все предметы (кроме резервуаров, так как они уничтожаются после распаковки)
 
             for (Direction dir : Direction.values()) {
@@ -142,6 +147,8 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                                 level.sendBlockUpdated(neighborPos, level.getBlockState(neighborPos), level.getBlockState(neighborPos), 3);
                                 be.inventory.extractItem(i, 1, false);
                                 be.setChanged();
+                                isMove = true;
+
                                 break;
                             }
                         }
@@ -163,6 +170,7 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                                     // возвращаем его обратно в инвентарь распаковщика
                                     net.minecraftforge.items.ItemHandlerHelper.insertItem(be.inventory, finalRemainder, false);
                                 }
+                                isMove = true;
                                 break;
                             }
                         }
@@ -170,6 +178,19 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                 }
             }
         }
+
+        if(isMove) {
+            be.setStatus(1);
+        } else if(!isEmpty) {
+            be.setStatus(2);
+        }
+    }
+
+    public void setStatus(int status) {
+        if (level == null) return;
+        BlockState state = level.getBlockState(worldPosition);
+        level.setBlock(worldPosition, state.setValue(AccessPortBlock.STATUS, status), 3);
+        level.scheduleTick(worldPosition, state.getBlock(), 20);
     }
 
     private int pushFluid(FluidStack fluid) {

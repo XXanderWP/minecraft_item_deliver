@@ -1,5 +1,7 @@
 {
   "variants": {
-    "": { "model": "logisticsports:block/transport_unpacker" }
+    "status=0": { "model": "logisticsports:block/transport_unpacker" },
+    "status=1": { "model": "logisticsports:block/transport_unpacker_active" },
+    "status=2": { "model": "logisticsports:block/transport_unpacker_error" }
   }
 }
