@@ -67,7 +67,10 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
-    public void placeOrder(Player player, int batches) {
+    // Состояние редстоуна (для детекции фронта)
+    private boolean lastRedstoneState = false;
+
+    public void placeOrder(@Nullable Player player, int batches) {
         if (level == null || level.isClientSide) return;
 
         // Собираем список нужных предметов и жидкостей с учётом партий
@@ -78,7 +81,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         if (needed.isEmpty() && neededFluid.isEmpty()) {
-            player.sendSystemMessage(Component.translatable("config.logisticsports.action.warning_chat", Component.translatable("config.logisticsports.recipe_is_empty")));
+            if (player != null) player.sendSystemMessage(Component.translatable("config.logisticsports.action.warning_chat", Component.translatable("config.logisticsports.recipe_is_empty")));
             setStatus(2); // провал
             return;
         }
@@ -86,7 +89,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         // Находим все Порты Выдачи на той же частоте
         List<OutputPortBlockEntity> ports = findOutputPorts();
         if (ports.isEmpty()) {
-            player.sendSystemMessage(
+            if (player != null) player.sendSystemMessage(
                     Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_output", frequency))
             );
             setStatus(2); // провал
@@ -124,9 +127,11 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         if (requireAll && !missing.isEmpty()) {
-            player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.missing")));
-            for (Component m : missing) {
-                player.sendSystemMessage(m);
+            if (player != null) {
+                player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.missing")));
+                for (Component m : missing) {
+                    player.sendSystemMessage(m);
+                }
             }
             setStatus(2); // провал
             return;
@@ -146,16 +151,27 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         // Проверяем место в портах выдачи
         if (!hasEnoughSpace(ports, needed, neededFluid, circuitStack)) {
-            player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_space")));
+            if (player != null) player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_space")));
             setStatus(2); // провал
             return;
         }
 
         // Перемещаем предметы и жидкости
         executeOrder(ports, needed, neededFluid, available, availableFluids, effectiveRecipient, circuitStack);
-        
-        player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
+
+        if (player != null) player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
         setStatus(1); // успех
+    }
+
+    public void onNeighborUpdate(boolean hasSignal) {
+        if (hasSignal && !lastRedstoneState) {
+            placeOrder(null, 1);
+            setChanged();
+        }
+        if (hasSignal != lastRedstoneState) {
+            lastRedstoneState = hasSignal;
+            setChanged();
+        }
     }
 
     public void setStatus(int status) {
@@ -511,6 +527,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         tag.putBoolean("requireAll", requireAll);
         tag.putBoolean("packageMode", packageMode);
         tag.putString("recipient", recipient);
+        tag.putBoolean("lastRedstoneState", lastRedstoneState);
         if (!indicator.isEmpty()) {
             CompoundTag indicatorTag = new CompoundTag();
             indicator.save(indicatorTag);
@@ -532,6 +549,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         requireAll = tag.getBoolean("requireAll");
         packageMode = tag.getBoolean("packageMode");
         recipient = tag.getString("recipient");
+        lastRedstoneState = tag.getBoolean("lastRedstoneState");
         if (tag.contains("indicator")) {
             indicator = ItemStack.of(tag.getCompound("indicator"));
         }

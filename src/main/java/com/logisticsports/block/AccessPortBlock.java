@@ -102,6 +102,16 @@ public class AccessPortBlock extends BaseEntityBlock {
     }
 
     @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+        super.neighborChanged(state, level, pos, block, fromPos, isMoving);
+        if (level.isClientSide) return;
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof AccessPortBlockEntity port) {
+            port.onNeighborUpdate(level.hasNeighborSignal(pos));
+        }
+    }
+
+    @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             super.onRemove(state, level, pos, newState, isMoving);
