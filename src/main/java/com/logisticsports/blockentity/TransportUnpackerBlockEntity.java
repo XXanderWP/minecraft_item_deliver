@@ -82,6 +82,11 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                 BlockPos neighborPos = pos.relative(dir);
                 BlockEntity neighbor = level.getBlockEntity(neighborPos);
                 if (neighbor != null) {
+                    // Запрещаем передачу в другие транспортировщики
+                    if (neighbor instanceof TransportUnpackerBlockEntity) {
+                        continue;
+                    }
+
                     // GregTech special integration for programmed_circuit
                     if (stack.getItem().getDescriptionId().contains("gtceu.programmed_circuit")) {
                         CompoundTag stackTag = stack.getTag();
@@ -199,8 +204,16 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
         FluidStack toPush = fluid.copy();
 
         for (Direction dir : Direction.values()) {
-            BlockEntity neighbor = level.getBlockEntity(worldPosition.relative(dir));
+            BlockPos neighborPos = worldPosition.relative(dir);
+            BlockEntity neighbor = level.getBlockEntity(neighborPos);
             if (neighbor != null) {
+                // Запрещаем передачу в другие транспортировщики
+                if (neighbor instanceof TransportUnpackerBlockEntity || 
+                    neighbor instanceof AccessPortBlockEntity || 
+                    neighbor instanceof OutputPortBlockEntity) {
+                    continue;
+                }
+
                 var cap = neighbor.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
                 if (cap.isPresent()) {
                     IFluidHandler handler = cap.orElse(null);
