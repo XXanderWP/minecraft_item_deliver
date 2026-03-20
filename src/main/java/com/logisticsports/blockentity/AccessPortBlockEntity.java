@@ -131,32 +131,28 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
+        // Генерируем интегральную схему GTCEu, если нужно
+        ItemStack circuitStack = ItemStack.EMPTY;
+        if (gtcCircuit > 0) {
+            circuitStack = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("gtceu", "programmed_circuit")));
+            if (!circuitStack.isEmpty()) {
+                CompoundTag circuitTag = new CompoundTag();
+                circuitTag.putInt("Configuration", gtcCircuit);
+                circuitStack.setTag(circuitTag);
+            }
+        }
+
         // Проверяем место в портах выдачи
-        if (!hasEnoughSpace(ports, needed, neededFluid)) {
+        if (!hasEnoughSpace(ports, needed, neededFluid, circuitStack)) {
             player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_space")));
             setStatus(2); // провал
             return;
         }
 
         // Перемещаем предметы и жидкости
-        executeOrder(ports, needed, neededFluid, available, availableFluids, effectiveRecipient);
+        executeOrder(ports, needed, neededFluid, available, availableFluids, effectiveRecipient, circuitStack);
         
-        // Генерируем интегральную схему GTCEu, если нужно
-        if (gtcCircuit > 0) {
-            ItemStack circuitStack = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
-                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("gtceu", "programmed_circuit")));
-            if (!circuitStack.isEmpty()) {
-                CompoundTag circuitTag = new CompoundTag();
-                circuitTag.putInt("Configuration", gtcCircuit);
-                circuitStack.setTag(circuitTag);
-                
-                // Отправляем в первый доступный порт (для простоты)
-                if (!ports.isEmpty()) {
-                    ports.get(0).startProcessingItem(circuitStack, Direction.UP);
-                }
-            }
-        }
-
         player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
         setStatus(1); // успех
     }
@@ -291,13 +287,16 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         return 0;
     }
 
-    private boolean hasEnoughSpace(List<OutputPortBlockEntity> ports, List<ItemStack> needed, FluidStack neededFluid) {
+    private boolean hasEnoughSpace(List<OutputPortBlockEntity> ports, List<ItemStack> needed, FluidStack neededFluid, ItemStack gtcCircuitStack) {
         int totalFluidNeeded = neededFluid.isEmpty() ? 0 : (int)Math.ceil(neededFluid.getAmount() / 1000.0);
         
         // Для упрощения: каждый резервуар занимает 1 слот
         List<ItemStack> allNeededItems = new ArrayList<>(needed);
         if (totalFluidNeeded > 0) {
             allNeededItems.add(new ItemStack(ModRegistry.TRANSPORT_RESERVOIR.get(), totalFluidNeeded));
+        }
+        if (!gtcCircuitStack.isEmpty()) {
+            allNeededItems.add(gtcCircuitStack);
         }
 
         for (ItemStack need : allNeededItems) {
@@ -315,7 +314,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                               FluidStack neededFluid,
                               Map<ItemStack, Integer> available,
                               Map<FluidStack, Integer> availableFluids,
-                              String effectiveRecipient) {
+                              String effectiveRecipient,
+                              ItemStack gtcCircuitStack) {
         
         int remainingFluid = neededFluid.getAmount();
         Map<OutputPortBlockEntity, List<ItemStack>> portToReservoirs = new HashMap<>();
@@ -391,15 +391,24 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 toDeliver.addAll(reservoirs);
             }
 
-            if (toDeliver.isEmpty()) continue;
+            if (toDeliver.isEmpty() && gtcCircuitStack.isEmpty()) continue;
 
             if (packageMode) {
+                if (!gtcCircuitStack.isEmpty()) {
+                    toDeliver.add(gtcCircuitStack.copy());
+                    gtcCircuitStack = ItemStack.EMPTY; // Добавляем только в первую посылку
+                }
+                
                 ItemStack packageStack = com.simibubi.create.content.logistics.box.PackageItem.containing(toDeliver);
                 if (!effectiveRecipient.isBlank()) {
                     com.simibubi.create.content.logistics.box.PackageItem.addAddress(packageStack, effectiveRecipient);
                 }
                 port.startProcessingItem(packageStack, Direction.UP); // Временно UP, так как это из сундука "сверху" или "сбоку"
             } else {
+                if (!gtcCircuitStack.isEmpty()) {
+                    port.startProcessingItem(gtcCircuitStack.copy(), Direction.UP);
+                    gtcCircuitStack = ItemStack.EMPTY;
+                }
                 for (ItemStack s : toDeliver) {
                     port.startProcessingItem(s, Direction.UP);
                 }
