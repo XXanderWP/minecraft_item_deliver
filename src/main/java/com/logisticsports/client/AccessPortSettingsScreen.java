@@ -52,8 +52,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         int settingsStartY = 30 + recipeRows * 18 + 10;
 
         frequencyField = new EditBox(font,
-                leftPos + 40, topPos + settingsStartY,
-                50, 12, Component.literal("0"));
+                leftPos + 55, topPos + settingsStartY,
+                40, 12, Component.literal("0"));
         frequencyField.setValue(String.valueOf(menu.blockEntity.frequency));
         frequencyField.setFilter(s -> s.matches("-?\\d*"));
         frequencyField.setResponder(val -> {
@@ -70,8 +70,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         boolean isGregTechLoaded = net.minecraftforge.fml.ModList.get().isLoaded("gtceu");
         if (GREG_DEBUG || isGregTechLoaded) {
             gtcCircuitField = new EditBox(font,
-                    leftPos + 150, topPos + settingsStartY,
-                    40, 12, Component.literal("0"));
+                    leftPos + 160, topPos + settingsStartY,
+                    30, 12, Component.literal("0"));
             gtcCircuitField.setValue(String.valueOf(menu.blockEntity.gtcCircuit));
             gtcCircuitField.setFilter(s -> s.matches("\\d*"));
             gtcCircuitField.setResponder(val -> {
@@ -501,7 +501,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
         // GregTech текст
         if (gtcCircuitField != null) {
-            g.drawString(font, Component.literal("GT Circuit:"), x + 95, currentY + 2, 0xFF222222, false);
+            g.drawString(font, Component.literal("GT Circuit:"), x + 105, currentY + 2, 0xFF222222, false);
         }
 
         // Адрес получателя (только если packageMode)
