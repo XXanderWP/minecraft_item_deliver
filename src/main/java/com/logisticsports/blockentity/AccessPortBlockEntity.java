@@ -172,20 +172,24 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private List<ItemStack> buildOrderList(int batches) {
-        Map<String, ItemStack> grouped = new LinkedHashMap<>();
+        List<ItemStack> grouped = new ArrayList<>();
         for (ItemStack stack : recipe) {
             if (stack.isEmpty()) continue;
-            String key = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                    .getKey(stack.getItem()).toString();
-            if (grouped.containsKey(key)) {
-                grouped.get(key).grow(stack.getCount() * batches);
-            } else {
+            boolean found = false;
+            for (ItemStack existing : grouped) {
+                if (ItemStack.isSameItemSameTags(existing, stack)) {
+                    existing.grow(stack.getCount() * batches);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 ItemStack copy = stack.copy();
                 copy.setCount(stack.getCount() * batches);
-                grouped.put(key, copy);
+                grouped.add(copy);
             }
         }
-        return new ArrayList<>(grouped.values());
+        return grouped;
     }
 
     private List<OutputPortBlockEntity> findOutputPorts() {
@@ -224,12 +228,11 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private Map<ItemStack, Integer> scanAvailable(List<OutputPortBlockEntity> ports) {
-        Map<String, int[]> counts = new LinkedHashMap<>();
-        Map<String, ItemStack> stackRefs = new LinkedHashMap<>();
+        Map<ItemTagKey, Integer> counts = new LinkedHashMap<>();
+        Map<ItemTagKey, ItemStack> stackRefs = new LinkedHashMap<>();
         Set<IItemHandler> scannedHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (OutputPortBlockEntity port : ports) {
-            // Сканируем хранилища рядом с портом
             for (Direction dir : Direction.values()) {
                 BlockPos neighbor = port.getBlockPos().relative(dir);
                 if (level == null) continue;
@@ -245,9 +248,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                     for (int i = 0; i < handler.getSlots(); i++) {
                         ItemStack s = handler.getStackInSlot(i);
                         if (s.isEmpty()) continue;
-                        String key = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                                .getKey(s.getItem()).toString();
-                        counts.computeIfAbsent(key, k -> new int[]{0})[0] += s.getCount();
+                        ItemTagKey key = new ItemTagKey(s);
+                        counts.merge(key, s.getCount(), Integer::sum);
                         stackRefs.putIfAbsent(key, s);
                     }
                 });
@@ -256,9 +258,15 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         Map<ItemStack, Integer> result = new LinkedHashMap<>();
         for (var entry : counts.entrySet()) {
-            result.put(stackRefs.get(entry.getKey()), entry.getValue()[0]);
+            result.put(stackRefs.get(entry.getKey()), entry.getValue());
         }
         return result;
+    }
+
+    private static record ItemTagKey(net.minecraft.world.item.Item item, @Nullable CompoundTag tag) {
+        public ItemTagKey(ItemStack stack) {
+            this(stack.getItem(), stack.getTag() == null ? null : stack.getTag().copy());
+        }
     }
 
     private int getAvailableCount(Map<ItemStack, Integer> available, ItemStack need) {
@@ -314,6 +322,20 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private boolean hasEnoughSpace(List<OutputPortBlockEntity> ports, List<ItemStack> needed, FluidStack neededFluid, ItemStack gtcCircuitStack) {
+        if (packageMode) {
+            // В режиме упаковки предметы могут распределиться по портам.
+            // В худшем случае на каждый порт по пакету.
+            int portsWithSpace = 0;
+            for (OutputPortBlockEntity port : ports) {
+                if (port.getFreeSpaceFor(new ItemStack(net.minecraft.world.item.Items.BARRIER)) > 0) {
+                    portsWithSpace++;
+                }
+            }
+            // Если хотя бы один порт имеет место, мы можем начать.
+            // При новой логике executeOrder предметы будут максимально группироваться в первых портах.
+            return portsWithSpace >= 1;
+        }
+
         int totalFluidNeeded = neededFluid.isEmpty() ? 0 : (int)Math.ceil(neededFluid.getAmount() / 1000.0);
         
         // Для упрощения: каждый резервуар занимает 1 слот
@@ -325,6 +347,10 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             allNeededItems.add(gtcCircuitStack);
         }
 
+        // Мы должны проверить, что суммарно во всех портах хватит места для всех предметов.
+        // Но предметы могут распределяться между портами.
+        // getFreeSpaceFor(need) возвращает общее кол-во предметов 'need', которое влезет в порт.
+        
         for (ItemStack need : allNeededItems) {
             int totalSpace = 0;
             for (OutputPortBlockEntity port : ports) {
@@ -384,37 +410,38 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         boolean circuitDelivered = gtcCircuitStack.isEmpty();
 
         for (OutputPortBlockEntity port : ports) {
-            Set<IItemHandler> usedItemHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
+            Set<IItemHandler> portHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
             List<ItemStack> toDeliver = new ArrayList<>();
             // Сначала предметы
-            for (ItemStack remainingNeed : globalRemainingItems) {
-                int stillNeeded = remainingNeed.getCount();
-                if (stillNeeded <= 0) continue;
+            for (Direction dir : Direction.values()) {
+                BlockPos neighbor = port.getBlockPos().relative(dir);
+                BlockEntity neighborBe = level.getBlockEntity(neighbor);
+                if (neighborBe == null || neighborBe instanceof OutputPortBlockEntity) continue;
 
-                for (Direction dir : Direction.values()) {
-                    if (stillNeeded <= 0) break;
-                    BlockPos neighbor = port.getBlockPos().relative(dir);
-                    BlockEntity be = level.getBlockEntity(neighbor);
-                    if (be == null || be instanceof OutputPortBlockEntity) continue;
-                    var cap = be.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
-                    if (!cap.isPresent()) continue;
-                    var handler = cap.orElse(null);
-                    if (handler == null || !usedItemHandlers.add(handler)) continue;
+                var cap = neighborBe.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
+                cap.ifPresent(handler -> {
+                    if (!portHandlers.add(handler)) return;
 
-                    for (int i = 0; i < handler.getSlots() && stillNeeded > 0; i++) {
+                    for (int i = 0; i < handler.getSlots(); i++) {
                         ItemStack s = handler.getStackInSlot(i);
-                        if (s.isEmpty() || !ItemStack.isSameItemSameTags(s, remainingNeed)) continue;
-                        
-                        ItemStack extracted = handler.extractItem(i, stillNeeded, false);
-                        if (!extracted.isEmpty()) {
-                            toDeliver.add(extracted);
-                            int countExtracted = extracted.getCount();
-                            stillNeeded -= countExtracted;
-                            // Уменьшаем глобальный остаток для этого предмета
-                            remainingNeed.shrink(countExtracted);
+                        if (s.isEmpty()) continue;
+
+                        for (ItemStack remainingNeed : globalRemainingItems) {
+                            if (remainingNeed.getCount() <= 0) continue;
+                            if (ItemStack.isSameItemSameTags(s, remainingNeed)) {
+                                int toExtract = Math.min(remainingNeed.getCount(), s.getCount());
+                                ItemStack extracted = handler.extractItem(i, toExtract, false);
+                                if (!extracted.isEmpty()) {
+                                    toDeliver.add(extracted);
+                                    remainingNeed.shrink(extracted.getCount());
+                                    // Обновляем локальную ссылку на стак в слоте, так как мы могли извлечь только часть
+                                    s = handler.getStackInSlot(i);
+                                    if (s.isEmpty()) break; // Слот опустел, переходим к следующему слоту
+                                }
+                            }
                         }
                     }
-                }
+                });
             }
             
             // Добавляем резервуары, которые относятся К ЭТОМУ ПОРТУ
@@ -677,10 +704,13 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                         if (s.isEmpty()) continue;
                         String key = net.minecraft.core.registries.BuiltInRegistries.ITEM
                                 .getKey(s.getItem()).toString();
+                        if (s.hasTag()) {
+                            key += "@" + s.getTag().toString();
+                        }
                         availableCache.merge(key, s.getCount(), Integer::sum);
                     }
                 });
-
+                
                 var fluidCap = be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
                 fluidCap.ifPresent(handler -> {
                     if (!scannedFluidHandlers.add(handler)) return;
@@ -704,6 +734,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public int getAvailableCount(ItemStack stack) {
         String key = net.minecraft.core.registries.BuiltInRegistries.ITEM
                 .getKey(stack.getItem()).toString();
+        if (stack.hasTag()) {
+            key += "@" + stack.getTag().toString();
+        }
         return availableCache.getOrDefault(key, 0);
     }
 

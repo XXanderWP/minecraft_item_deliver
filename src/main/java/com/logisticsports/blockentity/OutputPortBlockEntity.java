@@ -107,7 +107,10 @@ public class OutputPortBlockEntity extends BlockEntity {
             ProcessingItem pi = be.processingItems.get(i);
             pi.timer--;
             if (pi.timer <= 0) {
-                be.insertItem(pi.stack);
+                ItemStack remainder = be.insertItem(pi.stack);
+                if (!remainder.isEmpty()) {
+                    net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), remainder);
+                }
                 be.processingItems.remove(i);
                 i--;
                 changed = true;
