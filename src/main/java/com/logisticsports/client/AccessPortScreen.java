@@ -24,6 +24,9 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
     private static final int BG_HEIGHT = 253;
     private EditBox batchesField;
 
+    private float scrollAmount = 0;
+    private final List<Button> multiportOrderButtons = new ArrayList<>();
+
     public AccessPortScreen(AccessPortMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         this.imageWidth = BG_WIDTH;
@@ -40,7 +43,7 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
                 leftPos + 71, topPos + BG_HEIGHT - 22,
                 30, 12, Component.literal("1"));
         batchesField.setValue("1");
-        batchesField.setFilter(s -> s.matches("[1-9]\\d*") || s.equals(""));
+        batchesField.setFilter(s -> s.matches("[1-9]\\d*") || s.isEmpty());
         batchesField.setResponder(val -> {
             if (val.isEmpty()) batchesField.setValue("1");
         });
@@ -61,13 +64,17 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         
         if (menu.blockEntity.isMultiport) {
             orderButton.visible = false;
+            multiportOrderButtons.clear();
             for (int i = 0; i < 9; i++) {
                 final int slot = i;
-                addRenderableWidget(Button.builder(Component.literal(""), btn -> placeMultiportOrder(slot))
+                Button btn = Button.builder(Component.literal(""), b -> placeMultiportOrder(slot))
                         .pos(leftPos + BG_WIDTH - 25, topPos + 24 + i * 21 + 3)
                         .size(14, 14)
                         .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("config.logisticsports.order")))
-                        .build()).visible = !menu.blockEntity.recipe.get(i).isEmpty();
+                        .build();
+                btn.visible = !menu.blockEntity.recipe.get(i).isEmpty();
+                addRenderableWidget(btn);
+                multiportOrderButtons.add(btn);
             }
         }
     }
@@ -98,7 +105,37 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             }
             return true;
         }
+
+        // Скролл списка
+        int listHeight = getListHeight();
+        int viewHeight = getViewHeight();
+        if (listHeight > viewHeight) {
+            scrollAmount = Math.min(Math.max(scrollAmount - (float)delta * 10, 0), listHeight - viewHeight);
+            return true;
+        }
+
         return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
+    private int getListHeight() {
+        int batches = 1;
+        try {
+            batches = Integer.parseInt(batchesField.getValue());
+            if (batches < 1) batches = 1;
+        } catch (NumberFormatException ignored) {}
+
+        int count = 0;
+        if (menu.blockEntity.isMultiport) {
+            count = 9;
+        } else {
+            count = getGroupedRecipe(batches).size();
+            if (!menu.blockEntity.fluidRecipe.isEmpty()) count++;
+        }
+        return count * 21;
+    }
+
+    private int getViewHeight() {
+        return (menu.blockEntity.indicator.isEmpty() ? BG_HEIGHT - 30 : BG_HEIGHT - 54) - 24;
     }
 
     private void openSettings() {
@@ -186,21 +223,34 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             grouped = getGroupedRecipe(batches);
         }
 
+        int viewHeight = getViewHeight();
+        int listHeight = getListHeight();
+
+        // Зажим скролла (если список стал меньше)
+        if (scrollAmount > Math.max(0, listHeight - viewHeight)) {
+            scrollAmount = Math.max(0, listHeight - viewHeight);
+        }
+
         int listY = y + 24;
+        int viewportY = listY;
+
+        g.enableScissor(x + 4, viewportY, x + BG_WIDTH - 4, viewportY + viewHeight);
+
+        int currentY = listY - (int)scrollAmount;
 
         if (grouped.isEmpty() || (menu.blockEntity.isMultiport && menu.blockEntity.recipe.stream().allMatch(ItemStack::isEmpty))) {
-            g.drawString(font, Component.translatable("config.logisticsports.recipe_is_empty"), x + 8, y + 30, 0xFF888888, false);
+            g.drawString(font, Component.translatable("config.logisticsports.recipe_is_empty"), x + 8, currentY + 6, 0xFF888888, false);
         } else {
             for (int i = 0; i < grouped.size(); i++) {
                 var stack = grouped.get(i);
                 int rowColor = (i % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
-                g.fill(x + 4, listY, x + BG_WIDTH - 4, listY + 20, rowColor);
+                g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
 
                 if (!stack.isEmpty()) {
-                    g.renderItem(stack, x + 5, listY + 2);
+                    g.renderItem(stack, x + 5, currentY + 2);
 
                     Component name = stack.getHoverName();
-                    g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
+                    g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
 
                     // Нужно x количество
                     int needed = stack.getCount();
@@ -208,15 +258,15 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
                     int avail = menu.blockEntity.getAvailableCount(stack);
                     int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
                     g.drawString(font, Convert.ShowAmountString(needed, false) + " (" + Convert.ShowAmountString(avail, true) + ")",
-                            x + 26, listY + 11, availColor, false);
+                            x + 26, currentY + 11, availColor, false);
                     
                     if (menu.blockEntity.isMultiport) {
                         // Стрелочка/иконка на кнопке заказа
-                        g.drawString(font, "→", x + BG_WIDTH - 21, listY + 6, 0xFF222222, false);
+                        g.drawString(font, "→", x + BG_WIDTH - 21, currentY + 6, 0xFF222222, false);
                     }
                 }
 
-                listY += 21;
+                currentY += 21;
             }
         }
 
@@ -225,12 +275,12 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             FluidStack fluid = menu.blockEntity.fluidRecipe;
             if (!fluid.isEmpty()) {
                 int rowColor = (grouped.size() % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
-                g.fill(x + 4, listY, x + BG_WIDTH - 4, listY + 20, rowColor);
+                g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
 
-                renderFluid(g, fluid, x + 5, listY + 2);
+                renderFluid(g, fluid, x + 5, currentY + 2);
 
                 Component name = fluid.getDisplayName();
-                g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
+                g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
 
                 // Нужно x количество (mB)
                 int needed = fluid.getAmount() * batches;
@@ -238,10 +288,21 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
                 int avail = menu.blockEntity.getAvailableFluidCount(fluid);
                 int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
                 g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
-                        x + 26, listY + 11, availColor, false);
+                        x + 26, currentY + 11, availColor, false);
 
-                listY += 21;
+                currentY += 21;
             }
+        }
+
+        g.disableScissor();
+
+        // Скроллбар
+        if (listHeight > viewHeight) {
+            int scrollbarX = x + BG_WIDTH - 3;
+            int scrollbarHeight = (int)((viewHeight / (float)listHeight) * viewHeight);
+            int scrollbarY = viewportY + (int)((scrollAmount / (float)listHeight) * viewHeight);
+            g.fill(scrollbarX, viewportY, x + BG_WIDTH - 1, viewportY + viewHeight, 0xFF444444);
+            g.fill(scrollbarX, scrollbarY, x + BG_WIDTH - 1, scrollbarY + scrollbarHeight, 0xFF888888);
         }
 
         // Индикатор (результат) — над нижней панелью
@@ -265,6 +326,16 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partialTick) {
+        if (menu.blockEntity.isMultiport) {
+            int viewportY = topPos + 24;
+            int viewHeight = getViewHeight();
+            for (int i = 0; i < multiportOrderButtons.size(); i++) {
+                Button btn = multiportOrderButtons.get(i);
+                int btnY = viewportY + i * 21 + 3 - (int)scrollAmount;
+                btn.setY(btnY);
+                btn.visible = !menu.blockEntity.recipe.get(i).isEmpty() && btnY >= viewportY && (btnY + 14) <= (viewportY + viewHeight);
+            }
+        }
         renderBackground(g);
         super.render(g, mx, my, partialTick);
         renderTooltip(g, mx, my);
