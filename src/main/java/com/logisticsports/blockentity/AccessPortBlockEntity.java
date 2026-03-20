@@ -191,9 +191,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         List<OutputPortBlockEntity> result = new ArrayList<>();
         if (level == null) return result;
 
-        // Сканируем блоки в радиусе 64 блоков
+        // Сканируем блоки в радиусе из конфига
         BlockPos center = worldPosition;
-        int radius = 64;
+        int radius = ModConfig.SERVER.searchRadius.get();
         for (BlockPos pos : BlockPos.betweenClosed(
                 center.offset(-radius, -radius, -radius),
                 center.offset(radius, radius, radius))) {

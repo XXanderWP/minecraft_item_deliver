@@ -56,6 +56,8 @@ public class ModConfig {
         public final ForgeConfigSpec.BooleanValue enableAutoSync;
         public final ForgeConfigSpec.IntValue autoSyncDistance;
         public final ForgeConfigSpec.IntValue autoSyncInterval;
+        
+        public final ForgeConfigSpec.IntValue searchRadius;
 
         public ServerConfig(ForgeConfigSpec.Builder builder) {
             builder.push("updates");
@@ -88,6 +90,11 @@ public class ModConfig {
                     .comment("Interval between automatic synchronization in seconds (1 to 60).")
                     .translation("config.logisticsports.auto_sync_interval")
                     .defineInRange("autoSyncInterval", 5, 1, 60);
+
+            searchRadius = builder
+                    .comment("Maximum search radius for Output Ports (in blocks).")
+                    .translation("config.logisticsports.search_radius")
+                    .defineInRange("searchRadius", 128, 1, 1024);
 
             builder.pop();
         }
