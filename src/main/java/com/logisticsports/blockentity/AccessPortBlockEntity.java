@@ -5,6 +5,8 @@ import com.logisticsports.registry.ModRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.ContainerHelper;
@@ -31,12 +33,18 @@ import net.minecraftforge.fluids.FluidStack;
 import java.util.*;
 
 public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
+    public static int getRecipeSlots() {
+        return ModConfig.SERVER != null ? ModConfig.SERVER.recipeSlots.get() : 18;
+    }
+    public static int getFluidRecipeSlots() {
+        return ModConfig.SERVER != null ? ModConfig.SERVER.fluidRecipeSlots.get() : 9;
+    }
     public boolean packageMode = false;
     public String recipient = "";
-    // Рецепт — 9 слотов
-    public final NonNullList<ItemStack> recipe = NonNullList.withSize(9, ItemStack.EMPTY);
+    // Рецепт
+    public final NonNullList<ItemStack> recipe = NonNullList.withSize(18, ItemStack.EMPTY);
     // Рецепт жидкости
-    public FluidStack fluidRecipe = FluidStack.EMPTY;
+    public final NonNullList<FluidStack> fluidsRecipe = NonNullList.withSize(9, FluidStack.EMPTY);
     // Индикаторный предмет
     public ItemStack indicator = ItemStack.EMPTY;
     // Частота сети
@@ -81,9 +89,10 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         // Собираем список нужных предметов и жидкостей с учётом партий
         List<ItemStack> needed;
-        FluidStack neededFluid = FluidStack.EMPTY;
+        List<FluidStack> neededFluids = new ArrayList<>();
 
-        if (isMultiport && slotIndex >= 0 && slotIndex < 9) {
+        int activeRecipeSlots = getRecipeSlots();
+        if (isMultiport && slotIndex >= 0 && slotIndex < activeRecipeSlots) {
             needed = new ArrayList<>();
             ItemStack stack = recipe.get(slotIndex);
             if (!stack.isEmpty()) {
@@ -93,13 +102,18 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             }
         } else {
             needed = buildOrderList(batches);
-            neededFluid = fluidRecipe.copy();
-            if (!neededFluid.isEmpty()) {
-                neededFluid.setAmount(neededFluid.getAmount() * batches);
+            int activeFluidSlots = getFluidRecipeSlots();
+            for (int i = 0; i < activeFluidSlots; i++) {
+                FluidStack stack = fluidsRecipe.get(i);
+                if (!stack.isEmpty()) {
+                    FluidStack copy = stack.copy();
+                    copy.setAmount(copy.getAmount() * batches);
+                    neededFluids.add(copy);
+                }
             }
         }
 
-        if (needed.isEmpty() && neededFluid.isEmpty()) {
+        if (needed.isEmpty() && neededFluids.isEmpty()) {
             if (player != null) player.sendSystemMessage(Component.translatable("config.logisticsports.action.warning_chat", Component.translatable("config.logisticsports.recipe_is_empty")));
             setStatus(2); // провал
             return;
@@ -135,7 +149,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             }
         }
 
-        if (!neededFluid.isEmpty()) {
+        for (FluidStack neededFluid : neededFluids) {
             int have = getAvailableFluidCount(availableFluids, neededFluid);
             if (have < neededFluid.getAmount()) {
                 if (requireAll) {
@@ -169,14 +183,14 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         // Проверяем место в портах выдачи
-        if (!hasEnoughSpace(ports, needed, neededFluid, circuitStack)) {
+        if (!hasEnoughSpace(ports, needed, neededFluids, circuitStack)) {
             if (player != null) player.sendSystemMessage(Component.translatable("config.logisticsports.action.error_chat", Component.translatable("config.logisticsports.action.no_space")));
             setStatus(2); // провал
             return;
         }
 
         // Перемещаем предметы и жидкости
-        executeOrder(ports, needed, neededFluid, available, availableFluids, effectiveRecipient, circuitStack);
+        executeOrder(ports, needed, neededFluids, available, availableFluids, effectiveRecipient, circuitStack);
 
         if (player != null) player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
         setStatus(1); // успех
@@ -209,7 +223,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     private List<ItemStack> buildOrderList(int batches) {
         List<ItemStack> grouped = new ArrayList<>();
-        for (ItemStack stack : recipe) {
+        int activeRecipeSlots = getRecipeSlots();
+        for (int i = 0; i < activeRecipeSlots; i++) {
+            ItemStack stack = recipe.get(i);
             if (stack.isEmpty()) continue;
             boolean found = false;
             for (ItemStack existing : grouped) {
@@ -357,7 +373,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         return 0;
     }
 
-    private boolean hasEnoughSpace(List<OutputPortBlockEntity> ports, List<ItemStack> needed, FluidStack neededFluid, ItemStack gtcCircuitStack) {
+    private boolean hasEnoughSpace(List<OutputPortBlockEntity> ports, List<ItemStack> needed, List<FluidStack> neededFluids, ItemStack gtcCircuitStack) {
         if (packageMode) {
             // В режиме упаковки предметы могут распределиться по портам.
             // В худшем случае на каждый порт по пакету.
@@ -372,7 +388,12 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             return portsWithSpace >= 1;
         }
 
-        int totalFluidNeeded = neededFluid.isEmpty() ? 0 : (int)Math.ceil(neededFluid.getAmount() / 1000.0);
+        int totalFluidNeeded = 0;
+        for (FluidStack stack : neededFluids) {
+            if (!stack.isEmpty()) {
+                totalFluidNeeded += (int) Math.ceil(stack.getAmount() / 1000.0);
+            }
+        }
         
         // Для упрощения: каждый резервуар занимает 1 слот
         List<ItemStack> allNeededItems = new ArrayList<>(needed);
@@ -399,39 +420,41 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     private void executeOrder(List<OutputPortBlockEntity> ports,
                               List<ItemStack> needed,
-                              FluidStack neededFluid,
+                              List<FluidStack> neededFluids,
                               Map<ItemStack, Integer> available,
                               Map<FluidStack, Integer> availableFluids,
                               String effectiveRecipient,
                               ItemStack gtcCircuitStack) {
         
-        int remainingFluid = neededFluid.getAmount();
         Map<OutputPortBlockEntity, List<ItemStack>> portToReservoirs = new HashMap<>();
-        if (remainingFluid > 0) {
-            for (OutputPortBlockEntity port : ports) {
-                if (remainingFluid <= 0) break;
-                Set<net.minecraftforge.fluids.capability.IFluidHandler> usedFluidHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
-                for (Direction dir : Direction.values()) {
+        for (FluidStack neededFluid : neededFluids) {
+            int remainingFluid = neededFluid.getAmount();
+            if (remainingFluid > 0) {
+                for (OutputPortBlockEntity port : ports) {
                     if (remainingFluid <= 0) break;
-                    BlockPos neighbor = port.getBlockPos().relative(dir);
-                    BlockEntity be = level.getBlockEntity(neighbor);
-                    if (be == null || be instanceof OutputPortBlockEntity) continue;
-                    var cap = be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
-                    if (!cap.isPresent()) continue;
-                    var handler = cap.orElse(null);
-                    if (handler == null || !usedFluidHandlers.add(handler)) continue;
-                    
-                    while (remainingFluid > 0) {
-                        FluidStack toDrain = neededFluid.copy();
-                        toDrain.setAmount(Math.min(remainingFluid, 1000));
-                        FluidStack drained = handler.drain(toDrain, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
-                        if (drained.isEmpty()) break;
+                    Set<net.minecraftforge.fluids.capability.IFluidHandler> usedFluidHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
+                    for (Direction dir : Direction.values()) {
+                        if (remainingFluid <= 0) break;
+                        BlockPos neighbor = port.getBlockPos().relative(dir);
+                        BlockEntity be = level.getBlockEntity(neighbor);
+                        if (be == null || be instanceof OutputPortBlockEntity) continue;
+                        var cap = be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
+                        if (!cap.isPresent()) continue;
+                        var handler = cap.orElse(null);
+                        if (handler == null || !usedFluidHandlers.add(handler)) continue;
                         
-                        ItemStack reservoir = new ItemStack(ModRegistry.TRANSPORT_RESERVOIR.get());
-                        com.logisticsports.item.TransportReservoirItem.setFluid(reservoir, drained);
-                        portToReservoirs.computeIfAbsent(port, k -> new ArrayList<>()).add(reservoir);
-                        port.startProcessingFluid(drained);
-                        remainingFluid -= drained.getAmount();
+                        while (remainingFluid > 0) {
+                            FluidStack toDrain = neededFluid.copy();
+                            toDrain.setAmount(Math.min(remainingFluid, 1000));
+                            FluidStack drained = handler.drain(toDrain, net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                            if (drained.isEmpty()) break;
+                            
+                            ItemStack reservoir = new ItemStack(ModRegistry.TRANSPORT_RESERVOIR.get());
+                            com.logisticsports.item.TransportReservoirItem.setFluid(reservoir, drained);
+                            portToReservoirs.computeIfAbsent(port, k -> new ArrayList<>()).add(reservoir);
+                            port.startProcessingFluid(drained);
+                            remainingFluid -= drained.getAmount();
+                        }
                     }
                 }
             }
@@ -548,9 +571,21 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         ContainerHelper.saveAllItems(tag, recipe);
-        if (!fluidRecipe.isEmpty()) {
-            tag.put("fluidRecipe", fluidRecipe.writeToNBT(new CompoundTag()));
+
+        CompoundTag fluidsTag = new CompoundTag();
+        ListTag list = new ListTag();
+        for (int i = 0; i < fluidsRecipe.size(); i++) {
+            FluidStack stack = fluidsRecipe.get(i);
+            if (!stack.isEmpty()) {
+                CompoundTag fluidTag = new CompoundTag();
+                fluidTag.putInt("Slot", i);
+                stack.writeToNBT(fluidTag);
+                list.add(fluidTag);
+            }
         }
+        fluidsTag.put("Fluids", list);
+        tag.put("fluidsRecipe", fluidsTag);
+
         tag.putInt("frequency", frequency);
         tag.putInt("gtcCircuit", gtcCircuit);
         tag.putBoolean("isMultiport", isMultiport);
@@ -569,11 +604,27 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public void load(CompoundTag tag) {
         super.load(tag);
         ContainerHelper.loadAllItems(tag, recipe);
+
+        // Миграция со старого формата fluidRecipe
         if (tag.contains("fluidRecipe")) {
-            fluidRecipe = FluidStack.loadFluidStackFromNBT(tag.getCompound("fluidRecipe"));
-        } else {
-            fluidRecipe = FluidStack.EMPTY;
+            FluidStack oldFluid = FluidStack.loadFluidStackFromNBT(tag.getCompound("fluidRecipe"));
+            if (!oldFluid.isEmpty()) {
+                fluidsRecipe.set(0, oldFluid);
+            }
         }
+
+        if (tag.contains("fluidsRecipe")) {
+            CompoundTag fluidsTag = tag.getCompound("fluidsRecipe");
+            ListTag list = fluidsTag.getList("Fluids", Tag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag fluidTag = list.getCompound(i);
+                int slot = fluidTag.getInt("Slot");
+                if (slot >= 0 && slot < fluidsRecipe.size()) {
+                    fluidsRecipe.set(slot, FluidStack.loadFluidStackFromNBT(fluidTag));
+                }
+            }
+        }
+
         frequency = tag.getInt("frequency");
         gtcCircuit = tag.getInt("gtcCircuit");
         isMultiport = tag.getBoolean("isMultiport");
@@ -631,7 +682,9 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 }
             } else {
                 // Если обычный режим - принимаем только вещи из рецепта
-                for (ItemStack recipeStack : recipe) {
+                int activeRecipeSlots = getRecipeSlots();
+                for (int i = 0; i < activeRecipeSlots; i++) {
+                    ItemStack recipeStack = recipe.get(i);
                     if (!recipeStack.isEmpty() && ItemStack.isSameItemSameTags(recipeStack, stack)) {
                         allowed = true;
                         break;

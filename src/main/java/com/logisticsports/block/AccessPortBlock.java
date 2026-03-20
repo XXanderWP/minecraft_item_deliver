@@ -138,10 +138,12 @@ public class AccessPortBlock extends BaseEntityBlock {
             tooltip.add(Component.translatable("config.logisticsports.frequency_tooltip2", freq));
 
             if (beTag.contains("Items")) {
-                net.minecraft.core.NonNullList<ItemStack> recipe = net.minecraft.core.NonNullList.withSize(9, ItemStack.EMPTY);
+                int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+                net.minecraft.core.NonNullList<ItemStack> recipe = net.minecraft.core.NonNullList.withSize(18, ItemStack.EMPTY);
                 net.minecraft.world.ContainerHelper.loadAllItems(beTag, recipe);
                 boolean hasRecipe = false;
-                for (ItemStack s : recipe) {
+                for (int i = 0; i < activeRecipeSlots; i++) {
+                    ItemStack s = recipe.get(i);
                     if (!s.isEmpty()) {
                         if (!hasRecipe) {
                             tooltip.add(Component.translatable("config.logisticsports.require"));
@@ -151,6 +153,43 @@ public class AccessPortBlock extends BaseEntityBlock {
                     }
                 }
             }
+            
+            // Загрузка жидкостей
+            net.minecraft.core.NonNullList<net.minecraftforge.fluids.FluidStack> fluidsRecipe = net.minecraft.core.NonNullList.withSize(9, net.minecraftforge.fluids.FluidStack.EMPTY);
+            boolean hasFluid = false;
+            
+            // Миграция со старого формата
+            if (beTag.contains("fluidRecipe")) {
+                net.minecraftforge.fluids.FluidStack oldFluid = net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(beTag.getCompound("fluidRecipe"));
+                if (!oldFluid.isEmpty()) {
+                    fluidsRecipe.set(0, oldFluid);
+                }
+            }
+            
+            if (beTag.contains("fluidsRecipe")) {
+                net.minecraft.nbt.CompoundTag fluidsTag = beTag.getCompound("fluidsRecipe");
+                net.minecraft.nbt.ListTag list = fluidsTag.getList("Fluids", net.minecraft.nbt.Tag.TAG_COMPOUND);
+                for (int i = 0; i < list.size(); i++) {
+                    net.minecraft.nbt.CompoundTag fluidTag = list.getCompound(i);
+                    int slot = fluidTag.getInt("Slot");
+                    if (slot >= 0 && slot < fluidsRecipe.size()) {
+                        fluidsRecipe.set(slot, net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(fluidTag));
+                    }
+                }
+            }
+            
+            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+            for (int i = 0; i < activeFluidSlots; i++) {
+                net.minecraftforge.fluids.FluidStack s = fluidsRecipe.get(i);
+                if (!s.isEmpty()) {
+                    if (!hasFluid) {
+                        tooltip.add(net.minecraft.network.chat.Component.translatable("config.logisticsports.require_fluid"));
+                        hasFluid = true;
+                    }
+                    tooltip.add(net.minecraft.network.chat.Component.literal("§8 - ").append(s.getDisplayName()).append(net.minecraft.network.chat.Component.literal(" " + s.getAmount() + "mB")));
+                }
+            }
+
             if (beTag.contains("indicator")) {
                 ItemStack indicator = ItemStack.of(beTag.getCompound("indicator"));
                 if (!indicator.isEmpty()) {

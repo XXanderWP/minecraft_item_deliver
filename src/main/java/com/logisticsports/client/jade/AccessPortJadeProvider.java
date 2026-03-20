@@ -53,7 +53,16 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
 
         // Рецепт
         List<ItemStack> grouped = getGrouped(be);
-        if (!grouped.isEmpty() || !be.fluidRecipe.isEmpty()) {
+        boolean hasFluid = false;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        for (int i = 0; i < activeFluidSlots; i++) {
+            if (!be.fluidsRecipe.get(i).isEmpty()) {
+                hasFluid = true;
+                break;
+            }
+        }
+
+        if (!grouped.isEmpty() || hasFluid) {
             tooltip.add(Component.translatable( be.isMultiport ? "config.logisticsports.require_multiple_tooltip" : "config.logisticsports.require_tooltip"));
             for (ItemStack stack : grouped) {
                 int avail = be.getAvailableCount(stack);
@@ -62,12 +71,17 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
                 
                 tooltip.add(Component.literal("  ").append(stack.getHoverName()).append(Component.literal(" §f" + Convert.ShowAmountString(needed, false) + " " + color + "(" + Convert.ShowAmountString(avail, true) + ")")));
             }
-            if (!be.fluidRecipe.isEmpty() && !be.isMultiport) {
-                int avail = be.getAvailableFluidCount(be.fluidRecipe);
-                int needed = be.fluidRecipe.getAmount();
-                String color = avail >= needed ? "§a" : "§c";
+            if (hasFluid && !be.isMultiport) {
+                for (int i = 0; i < activeFluidSlots; i++) {
+                    var fluid = be.fluidsRecipe.get(i);
+                    if (fluid.isEmpty()) continue;
+                    
+                    int avail = be.getAvailableFluidCount(fluid);
+                    int needed = fluid.getAmount();
+                    String color = avail >= needed ? "§a" : "§c";
 
-                tooltip.add(Component.literal("  ").append(be.fluidRecipe.getDisplayName()).append(Component.literal(" §f" + Convert.ShowAmountString(needed, false, true) + " " + color + "(" + Convert.ShowAmountString(avail, true, true) + ")")));
+                    tooltip.add(Component.literal("  ").append(fluid.getDisplayName()).append(Component.literal(" §f" + Convert.ShowAmountString(needed, false, true) + " " + color + "(" + Convert.ShowAmountString(avail, true, true) + ")")));
+                }
             }
         }
     }

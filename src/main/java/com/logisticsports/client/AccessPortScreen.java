@@ -1,5 +1,6 @@
 package com.logisticsports.client;
 
+import com.logisticsports.blockentity.AccessPortBlockEntity;
 import com.logisticsports.menu.AccessPortMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -65,7 +66,8 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
         if (menu.blockEntity.isMultiport) {
             orderButton.visible = false;
             multiportOrderButtons.clear();
-            for (int i = 0; i < 9; i++) {
+            int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+            for (int i = 0; i < activeRecipeSlots; i++) {
                 final int slot = i;
                 Button btn = Button.builder(Component.literal(""), b -> placeMultiportOrder(slot))
                         .pos(leftPos + BG_WIDTH - 25, topPos + 24 + i * 21 + 3)
@@ -126,10 +128,15 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
         int count = 0;
         if (menu.blockEntity.isMultiport) {
-            count = 9;
+            count = AccessPortBlockEntity.getRecipeSlots();
         } else {
             count = getGroupedRecipe(batches).size();
-            if (!menu.blockEntity.fluidRecipe.isEmpty()) count++;
+            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+            for (int i = 0; i < activeFluidSlots; i++) {
+                if (!menu.blockEntity.fluidsRecipe.get(i).isEmpty()) {
+                    count++;
+                }
+            }
         }
         return count * 21;
     }
@@ -272,25 +279,30 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
 
         // Жидкость
         if (!menu.blockEntity.isMultiport) {
-            FluidStack fluid = menu.blockEntity.fluidRecipe;
-            if (!fluid.isEmpty()) {
-                int rowColor = (grouped.size() % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
-                g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
+            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+            int fluidIndexInList = grouped.size();
+            for (int i = 0; i < activeFluidSlots; i++) {
+                FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+                if (!fluid.isEmpty()) {
+                    int rowColor = (fluidIndexInList % 2 == 0) ? 0xFFBBBBBB : 0xFFC8C8C8;
+                    g.fill(x + 4, currentY, x + BG_WIDTH - 4, currentY + 20, rowColor);
 
-                renderFluid(g, fluid, x + 5, currentY + 2);
+                    renderFluid(g, fluid, x + 5, currentY + 2);
 
-                Component name = fluid.getDisplayName();
-                g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
+                    Component name = fluid.getDisplayName();
+                    g.drawString(font, name, x + 26, currentY + 1, 0xFF222222, false);
 
-                // Нужно x количество (mB)
-                int needed = fluid.getAmount() * batches;
-                // Доступно — запрашиваем с сервера через данные блока
-                int avail = menu.blockEntity.getAvailableFluidCount(fluid);
-                int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-                g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
-                        x + 26, currentY + 11, availColor, false);
+                    // Нужно x количество (mB)
+                    int needed = fluid.getAmount() * batches;
+                    // Доступно — запрашиваем с сервера через данные блока
+                    int avail = menu.blockEntity.getAvailableFluidCount(fluid);
+                    int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
+                    g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
+                            x + 26, currentY + 11, availColor, false);
 
-                currentY += 21;
+                    currentY += 21;
+                    fluidIndexInList++;
+                }
             }
         }
 

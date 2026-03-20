@@ -1,5 +1,6 @@
 package com.logisticsports.client;
 
+import com.logisticsports.blockentity.AccessPortBlockEntity;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.inventory.InventoryMenu;
@@ -28,9 +29,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     private EditBox recipientField;
     private Button packageModeButton;
     private Button multiportButton;
+    private Button requireAllButton;
     private final List<String> filteredSuggestions = new ArrayList<>();
     private boolean showSuggestions = false;
     private int scrollOffset = 0;
+    private float settingsScroll = 0;
     private static final int SUGGESTIONS_COUNT = 10;
 
     public AccessPortSettingsScreen(AccessPortSettingsMenu menu, Inventory playerInventory, Component title) {
@@ -44,8 +47,12 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         super.init();
         System.out.println("[DEBUG_LOG] Initializing AccessPortSettingsScreen. Suggestions available: " + menu.availableRecipients.size() + " -> " + menu.availableRecipients);
 
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        int settingsStartY = 30 + recipeRows * 18 + 10;
+
         frequencyField = new EditBox(font,
-                leftPos + 40, topPos + 58,
+                leftPos + 40, topPos + settingsStartY,
                 50, 12, Component.literal("0"));
         frequencyField.setValue(String.valueOf(menu.blockEntity.frequency));
         frequencyField.setFilter(s -> s.matches("-?\\d*"));
@@ -63,7 +70,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         boolean isGregTechLoaded = net.minecraftforge.fml.ModList.get().isLoaded("gtceu");
         if (GREG_DEBUG || isGregTechLoaded) {
             gtcCircuitField = new EditBox(font,
-                    leftPos + 150, topPos + 58,
+                    leftPos + 150, topPos + settingsStartY,
                     40, 12, Component.literal("0"));
             gtcCircuitField.setValue(String.valueOf(menu.blockEntity.gtcCircuit));
             gtcCircuitField.setFilter(s -> s.matches("\\d*"));
@@ -88,7 +95,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         ).pos(leftPos + 6, topPos + 5).size(14, 14).build());
 
         // Кнопка режима нехватки
-        addRenderableWidget(Button.builder(
+        requireAllButton = Button.builder(
                 Component.translatable(menu.blockEntity.requireAll ? "config.logisticsports.require.all" : "config.logisticsports.require.notall"),
                 btn -> {
                     boolean newVal = !menu.blockEntity.requireAll;
@@ -98,7 +105,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                             new com.logisticsports.network.PacketUpdateSettings(
                                     menu.blockEntity.getBlockPos(), newVal));
                 }
-        ).pos(leftPos + 95, topPos + 74).size(98, 14).build());
+        ).pos(leftPos + 95, topPos + settingsStartY + 16).size(98, 14).build();
+        addRenderableWidget(requireAllButton);
 
         // Кнопка режима мультипорта
         multiportButton = Button.builder(
@@ -110,7 +118,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                     com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
                             new com.logisticsports.network.PacketUpdateMultiportMode(newVal));
                 }
-        ).pos(leftPos + 150, topPos + 91).size(40, 14).build();
+        ).pos(leftPos + 150, topPos + settingsStartY + 33).size(40, 14).build();
         addRenderableWidget(multiportButton);
 
         // Кнопка упаковки посылки
@@ -125,12 +133,12 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                             new com.logisticsports.network.PacketUpdatePackageMode(
                                     menu.blockEntity.getBlockPos(), newVal));
                 }
-        ).pos(leftPos + 150, topPos + 107).size(40, 14).build();
+        ).pos(leftPos + 150, topPos + settingsStartY + 49).size(40, 14).build();
         addRenderableWidget(packageModeButton);
 
         // Поле адресата
         recipientField = new EditBox(font,
-                leftPos + 8, topPos + 135,
+                leftPos + 8, topPos + settingsStartY + 77,
                 150, 12, Component.literal(""));
         recipientField.setValue(menu.blockEntity.recipient);
         recipientField.setMaxLength(64);
@@ -144,6 +152,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         addRenderableWidget(recipientField);
 
         updateRecipientFieldVisibility();
+        updateWidgetPositions();
     }
 
     private void updateSuggestions(String input) {
@@ -188,12 +197,27 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
         if (showSuggestions && !filteredSuggestions.isEmpty()) {
             int x = leftPos + 8;
-            int y = topPos + 125;
+            int y = (int) (topPos + 30 + (AccessPortBlockEntity.getRecipeSlots() + 8) / 9 * 18 + 10 + 77 - 10 - settingsScroll);
             int width = 150;
             int height = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT) * 12;
             if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
                 int maxScroll = Math.max(0, filteredSuggestions.size() - SUGGESTIONS_COUNT);
                 scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset - (int) Math.signum(delta)));
+                return true;
+            }
+        }
+
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        int invTop = BG_HEIGHT - 18 * 4 - 8;
+        int scrollableViewHeight = invTop - 12 - (30 + recipeRows * 18 + 10);
+        int totalContentHeight = 100; // Примерная высота настроек
+
+        if (mouseX >= leftPos + 4 && mouseX <= leftPos + BG_WIDTH - 4 && 
+            mouseY >= topPos + 30 + recipeRows * 18 + 10 && mouseY <= topPos + invTop - 12) {
+            if (totalContentHeight > scrollableViewHeight) {
+                settingsScroll = Math.min(Math.max(settingsScroll - (float)delta * 10, 0), totalContentHeight - scrollableViewHeight);
+                updateWidgetPositions();
                 return true;
             }
         }
@@ -207,27 +231,40 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         
         int finalAmount = (delta > 0 ? 1 : -1) * amount;
 
-        // Слот жидкости (100)
-        int fx = leftPos + 8 + 9 * 18 + 4;
-        int fy = topPos + 30;
-        if (mouseX >= fx && mouseX <= fx + 16 && mouseY >= fy && mouseY <= fy + 16) {
-             FluidStack fluid = menu.blockEntity.fluidRecipe;
-             if (!fluid.isEmpty()) {
-                 int currentAmount = fluid.getAmount();
-                 int newAmount = currentAmount + finalAmount;
-                 if (newAmount < 1) {
-                     newAmount = 1; // Минимум 1 mB
-                 }
-                 if (newAmount != currentAmount) {
-                     FluidStack copy = fluid.copy();
-                     copy.setAmount(newAmount);
-                     menu.syncFluid(copy);
-                 }
-             }
-             return true;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        boolean horizontalFluids = activeFluidSlots > recipeRows;
+
+        for (int i = 0; i < activeFluidSlots; i++) {
+            int fx, fy;
+            if (horizontalFluids) {
+                int row = i / 9;
+                int col = i % 9;
+                fx = leftPos + 7 + col * 18;
+                fy = topPos + 30 + (recipeRows + row) * 18;
+            } else {
+                fx = leftPos + 8 + 9 * 18 + 4;
+                fy = topPos + 30 + i * 18;
+            }
+
+            if (mouseX >= fx && mouseX <= fx + 16 && mouseY >= fy && mouseY <= fy + 16) {
+                FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+                if (!fluid.isEmpty()) {
+                    int currentAmount = fluid.getAmount();
+                    int newAmount = currentAmount + finalAmount;
+                    if (newAmount < 1) {
+                        newAmount = 1; // Минимум 1 mB
+                    }
+                    if (newAmount != currentAmount) {
+                        FluidStack copy = fluid.copy();
+                        copy.setAmount(newAmount);
+                        menu.syncFluid(i, copy);
+                    }
+                }
+                return true;
+            }
         }
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < activeRecipeSlots + 1; i++) {
             Slot slot = menu.slots.get(i);
             int sx = leftPos + slot.x;
             int sy = topPos + slot.y;
@@ -239,11 +276,72 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
+    private void updateWidgetPositions() {
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        boolean horizontalFluids = activeFluidSlots > recipeRows;
+        int fluidRows = horizontalFluids ? (activeFluidSlots + 8) / 9 : 0;
+        int settingsStartY = 30 + (recipeRows + fluidRows) * 18 + 10;
+        int currentY = (int) (topPos + settingsStartY - settingsScroll);
+
+        int invTop = BG_HEIGHT - 18 * 4 - 8;
+        int scrollableViewStartY = topPos + settingsStartY;
+        int scrollableViewEndY = topPos + invTop - 12;
+
+        if (frequencyField != null) {
+            frequencyField.setY(currentY);
+            frequencyField.visible = isWidgetVisible(frequencyField.getY(), frequencyField.getHeight(), scrollableViewStartY, scrollableViewEndY);
+        }
+        if (gtcCircuitField != null) {
+            gtcCircuitField.setY(currentY);
+            gtcCircuitField.visible = isWidgetVisible(gtcCircuitField.getY(), gtcCircuitField.getHeight(), scrollableViewStartY, scrollableViewEndY);
+        }
+        
+        if (requireAllButton != null) {
+            requireAllButton.setY(currentY + 16);
+            requireAllButton.visible = isWidgetVisible(requireAllButton.getY(), requireAllButton.getHeight(), scrollableViewStartY, scrollableViewEndY);
+        }
+
+        if (multiportButton != null) {
+            multiportButton.setY(currentY + 33);
+            multiportButton.visible = isWidgetVisible(multiportButton.getY(), multiportButton.getHeight(), scrollableViewStartY, scrollableViewEndY);
+        }
+
+        if (packageModeButton != null) {
+            packageModeButton.setY(currentY + 49);
+            packageModeButton.visible = isWidgetVisible(packageModeButton.getY(), packageModeButton.getHeight(), scrollableViewStartY, scrollableViewEndY);
+        }
+
+        if (recipientField != null) {
+            recipientField.setY(currentY + 77);
+            boolean visibleInScroll = isWidgetVisible(recipientField.getY(), recipientField.getHeight(), scrollableViewStartY, scrollableViewEndY);
+            recipientField.visible = menu.blockEntity.packageMode && visibleInScroll;
+        }
+
+        // Кнопка requireAll не сохранена в поле, но она есть в renderables. 
+        // Для простоты я добавлю её обновление через перебор renderables если нужно, 
+        // но лучше просто обновлять те что важны.
+        // Переделаем init чтобы сохранить все важные кнопки.
+    }
+
+    private boolean isWidgetVisible(int widgetY, int widgetHeight, int startY, int endY) {
+        return widgetY >= startY && (widgetY + widgetHeight) <= endY;
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        boolean horizontalFluids = activeFluidSlots > recipeRows;
+        int fluidRows = horizontalFluids ? (activeFluidSlots + 8) / 9 : 0;
+        int settingsStartY = 30 + (recipeRows + fluidRows) * 18 + 10;
+        int invTop = BG_HEIGHT - 18 * 4 - 8;
+
         if (showSuggestions && !filteredSuggestions.isEmpty()) {
             int x = leftPos + 8;
-            int y = topPos + 125;
+            int y = (int) (topPos + settingsStartY + 77 - 10 - settingsScroll);
             int maxShow = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT);
             for (int i = 0; i < maxShow; i++) {
                 if (mouseX >= x && mouseX <= x + 150 && mouseY >= y + i * 12 && mouseY <= y + (i + 1) * 12) {
@@ -254,7 +352,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             }
         }
 
-        if (recipientField != null && recipientField.isVisible() && mouseX >= recipientField.getX() && mouseX <= recipientField.getX() + recipientField.getWidth() 
+        if (recipientField != null && recipientField.isVisible() && recipientField.visible &&
+            mouseX >= recipientField.getX() && mouseX <= recipientField.getX() + recipientField.getWidth() 
                 && mouseY >= recipientField.getY() && mouseY <= recipientField.getY() + recipientField.getHeight()) {
             showSuggestions = true;
             updateSuggestions(recipientField.getValue());
@@ -262,39 +361,57 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             showSuggestions = false;
         }
 
-        int fx = leftPos + 8 + 9 * 18 + 4;
-        int fy = topPos + 30;
-        if (mouseX >= fx && mouseX <= fx + 16 && mouseY >= fy && mouseY <= fy + 16) {
-            if (button == 0) { // ЛКМ
-                ItemStack carried = menu.getCarried();
-                if (carried.isEmpty()) {
-                    FluidStack fluid = menu.blockEntity.fluidRecipe;
-                    if (!fluid.isEmpty()) {
-                        FluidStack copy = fluid.copy();
-                        copy.setAmount(fluid.getAmount() + 1000);
-                        menu.syncFluid(copy);
-                        return true;
+        for (int i = 0; i < activeFluidSlots; i++) {
+            int curFx, curFy;
+            if (horizontalFluids) {
+                int row = i / 9;
+                int col = i % 9;
+                curFx = leftPos + 7 + col * 18;
+                curFy = topPos + 30 + (recipeRows + row) * 18;
+            } else {
+                curFx = leftPos + 8 + 9 * 18 + 4;
+                curFy = topPos + 30 + i * 18;
+            }
+            if (mouseX >= curFx && mouseX <= curFx + 16 && mouseY >= curFy && mouseY <= curFy + 16) {
+                if (button == 0) { // ЛКМ
+                    ItemStack carried = menu.getCarried();
+                    if (carried.isEmpty()) {
+                        FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+                        if (!fluid.isEmpty()) {
+                            FluidStack copy = fluid.copy();
+                            copy.setAmount(fluid.getAmount() + 1000);
+                            menu.syncFluid(i, copy);
+                            return true;
+                        }
                     }
                 }
+                menu.clicked(100 + i, button, net.minecraft.world.inventory.ClickType.PICKUP, minecraft.player);
+                return true;
             }
-            menu.clicked(100, button, net.minecraft.world.inventory.ClickType.PICKUP, minecraft.player);
-            return true;
         }
 
         // Клик по слотам рецепта и индикатору
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < activeRecipeSlots + 1; i++) {
             Slot slot = menu.slots.get(i);
             int sx = leftPos + slot.x;
             int sy = topPos + slot.y;
             if (mouseX >= sx && mouseX <= sx + 16 && mouseY >= sy && mouseY <= sy + 16) {
-                // Все клики по слотам 0-9 теперь обрабатываются через виртуальный клик
-                // аналогично слоту жидкости (100)
                 menu.clicked(i, button, net.minecraft.world.inventory.ClickType.PICKUP, minecraft.player);
                 return true;
             }
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        // Клик только по видимым виджетам в области скролла
+        boolean inScrollArea = mouseX >= leftPos + 4 && mouseX <= leftPos + BG_WIDTH - 4 && 
+                               mouseY >= topPos + settingsStartY && mouseY <= topPos + invTop - 12;
+
+        if (inScrollArea) {
+            return super.mouseClicked(mouseX, mouseY, button);
+        } else {
+            // Клик вне скролл-зоны — обрабатываем только виджеты вне её (например, кнопка назад)
+            // или стандартный клик инвентаря
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
     }
 
     @Override
@@ -317,9 +434,13 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
         // Список заказа
         g.drawString(font, Component.translatable("config.logisticsports.order_list"), x + 8, y + 22, 0xFF222222, false);
-        for (int i = 0; i < 9; i++) {
-            int sx = x + 7 + i * 18;
-            int sy = y + 30;
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        for (int i = 0; i < activeRecipeSlots; i++) {
+            int row = i / 9;
+            int col = i % 9;
+            int sx = x + 7 + col * 18;
+            int sy = y + 30 + row * 18;
             g.fill(sx, sy, sx + 18, sy + 18, 0xFF888888);
             g.fill(sx + 1, sy + 1, sx + 17, sy + 17, 0xFFAAAAAA);
         }
@@ -332,44 +453,74 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         g.fill(ix + 1, iy + 1, ix + 17, iy + 17, 0xFFDDDD55);
 
         // Слот жидкости
-        int fx = x + 8 + 9 * 18 + 4;
-        int fy = y + 30;
-        g.fill(fx, fy, fx + 18, fy + 18, 0xFF888888);
-        g.fill(fx + 1, fy + 1, fx + 17, fy + 17, 0xFF777777);
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        boolean horizontalFluids = activeFluidSlots > recipeRows;
 
-        FluidStack fluid = menu.blockEntity.fluidRecipe;
-        if (!fluid.isEmpty()) {
-            boolean isDraggingFluid = !minecraft.player.containerMenu.getCarried().isEmpty() && 
-                    net.minecraftforge.fluids.FluidUtil.getFluidContained(minecraft.player.containerMenu.getCarried()).isPresent();
-            int dx = 0;
-            int dy = 0;
-            renderFluid(g, fluid, fx + 1 + dx, fy + 1 + dy);
+        for (int i = 0; i < activeFluidSlots; i++) {
+            int fx, fy;
+            if (horizontalFluids) {
+                int row = i / 9;
+                int col = i % 9;
+                fx = x + 7 + col * 18;
+                fy = y + 30 + (recipeRows + row) * 18;
+            } else {
+                fx = x + 8 + 9 * 18 + 4;
+                fy = y + 30 + i * 18;
+            }
+            g.fill(fx, fy, fx + 18, fy + 18, 0xFF888888);
+            g.fill(fx + 1, fy + 1, fx + 17, fy + 17, 0xFF777777);
+
+            FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+            if (!fluid.isEmpty()) {
+                renderFluid(g, fluid, fx + 1, fy + 1);
+            }
         }
 
+        // --- Область скролла настроек ---
+        int fluidRows = horizontalFluids ? (activeFluidSlots + 8) / 9 : 0;
+        int settingsStartY = 30 + (recipeRows + fluidRows) * 18 + 10;
+        int invTop = BG_HEIGHT - 18 * 4 - 8;
+        int scrollableViewHeight = invTop - 12 - settingsStartY;
+        int totalContentHeight = 100;
+
+        g.enableScissor(x + 4, y + settingsStartY, x + BG_WIDTH - 4, y + invTop - 12);
+        
+        int currentY = (int) (y + settingsStartY - settingsScroll);
+
         // Частота
-        g.drawString(font, Component.translatable("config.logisticsports.frequency_menu"), x + 8, y + 60, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.frequency_menu"), x + 8, currentY + 2, 0xFF222222, false);
 
         // При нехватке
-        g.drawString(font, Component.translatable("config.logisticsports.shortage"), x + 8, y + 77, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.shortage"), x + 8, currentY + 19, 0xFF222222, false);
 
         // Режим мультипорта
-        g.drawString(font, Component.translatable("config.logisticsports.multiport"), x + 8, y + 94, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.multiport"), x + 8, currentY + 36, 0xFF222222, false);
 
         // Упаковывать посылку
-        g.drawString(font, Component.translatable("config.logisticsports.pack"), x + 8, y + 107, 0xFF222222, false);
+        g.drawString(font, Component.translatable("config.logisticsports.pack"), x + 8, currentY + 52, 0xFF222222, false);
 
         // GregTech текст
-        if (gtcCircuitField != null && gtcCircuitField.isVisible()) {
-            g.drawString(font, Component.literal("GT Circuit:"), x + 95, y + 60, 0xFF222222, false);
+        if (gtcCircuitField != null) {
+            g.drawString(font, Component.literal("GT Circuit:"), x + 95, currentY + 2, 0xFF222222, false);
         }
 
         // Адрес получателя (только если packageMode)
         if (menu.blockEntity.packageMode) {
-            g.drawString(font, Component.translatable("config.logisticsports.recipient"), x + 8, y + 123, 0xFF222222, false);
+            g.drawString(font, Component.translatable("config.logisticsports.recipient"), x + 8, currentY + 68, 0xFF222222, false);
+        }
+
+        g.disableScissor();
+
+        // Скроллбар для настроек
+        if (totalContentHeight > scrollableViewHeight) {
+            int scrollbarX = x + BG_WIDTH - 3;
+            int scrollbarHeight = (int)((scrollableViewHeight / (float)totalContentHeight) * scrollableViewHeight);
+            int scrollbarY = y + settingsStartY + (int)((settingsScroll / (float)totalContentHeight) * scrollableViewHeight);
+            g.fill(scrollbarX, y + settingsStartY, x + BG_WIDTH - 1, y + invTop - 12, 0xFF444444);
+            g.fill(scrollbarX, scrollbarY, x + BG_WIDTH - 1, scrollbarY + scrollbarHeight, 0xFF888888);
         }
 
         // Разделитель перед инвентарём — прикреплён к инвентарю
-        int invTop = BG_HEIGHT - 18 * 4 - 8;
         g.fill(x + 4, y + invTop - 12, x + BG_WIDTH - 4, y + invTop - 11, 0xFF888888);
         g.drawString(font, Component.translatable("config.logisticsports.inventory"), x + 8, y + invTop - 9, 0xFF555555, false);
 
@@ -394,17 +545,26 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partialTick) {
+        updateWidgetPositions(); // Обновляем позиции перед отрисовкой
         super.render(g, mx, my, partialTick);
 
-        if (showSuggestions && !filteredSuggestions.isEmpty() && recipientField != null && recipientField.isVisible()) {
+        if (showSuggestions && !filteredSuggestions.isEmpty() && recipientField != null && recipientField.isVisible() && recipientField.visible) {
             g.pose().pushPose();
             // Поднимаем предложения над слотами (которые обычно 0-100), но под тултипы (которые на 400)
             g.pose().translate(0, 0, 300);
+            int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+            int recipeRows = (activeRecipeSlots + 8) / 9;
+            int settingsStartY = 30 + recipeRows * 18 + 10;
             int x = leftPos + 8;
-            int y = topPos + 125;
+            int y = (int) (topPos + settingsStartY + 77 - 10 - settingsScroll);
             int maxShow = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT);
             int height = maxShow * 12;
             int width = 150;
+            
+            // Клиппинг предложений, чтобы они не вылезали за скролл-область?
+            // Но обычно они должны перекрывать инвентарь. Пользователь просил "не наезжало на инвентарь"
+            // для настроек. Подсказки - это временный оверлей.
+            
             g.fill(x, y, x + width, y + height, 0xDD000000);
             
             // Скроллбар
@@ -430,15 +590,30 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         }
 
         // Тултип для жидкости
-        int fx = leftPos + 8 + 9 * 18 + 4;
-        int fy = topPos + 30;
-        if (mx >= fx && mx <= fx + 18 && my >= fy && my <= fy + 18) {
-            FluidStack fluid = menu.blockEntity.fluidRecipe;
-            if (!fluid.isEmpty()) {
-                List<Component> tooltip = new ArrayList<>();
-                tooltip.add(fluid.getDisplayName());
-                tooltip.add(Component.literal("§7" + fluid.getAmount() + " mB"));
-                g.renderComponentTooltip(font, tooltip, mx, my);
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        boolean horizontalFluids = activeFluidSlots > recipeRows;
+
+        for (int i = 0; i < activeFluidSlots; i++) {
+            int curFx, curFy;
+            if (horizontalFluids) {
+                int row = i / 9;
+                int col = i % 9;
+                curFx = leftPos + 7 + col * 18;
+                curFy = topPos + 30 + (recipeRows + row) * 18;
+            } else {
+                curFx = leftPos + 8 + 9 * 18 + 4;
+                curFy = topPos + 30 + i * 18;
+            }
+            if (mx >= curFx && mx <= curFx + 18 && my >= curFy && my <= curFy + 18) {
+                FluidStack fluid = menu.blockEntity.fluidsRecipe.get(i);
+                if (!fluid.isEmpty()) {
+                    List<Component> tooltip = new ArrayList<>();
+                    tooltip.add(fluid.getDisplayName());
+                    tooltip.add(Component.literal("§7" + fluid.getAmount() + " mB"));
+                    g.renderComponentTooltip(font, tooltip, mx, my);
+                }
             }
         }
 

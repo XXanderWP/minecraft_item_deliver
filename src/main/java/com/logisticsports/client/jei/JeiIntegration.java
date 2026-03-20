@@ -5,6 +5,7 @@ import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
 import mezz.jei.api.ingredients.ITypedIngredient;
+import com.logisticsports.blockentity.AccessPortBlockEntity;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fluids.FluidStack;
@@ -77,32 +78,49 @@ public class JeiIntegration implements IModPlugin {
                             });
                         }
 
-                        // Добавляем слот жидкости (виртуальный)
-                        int fx = screen.getGuiLeft() + 8 + 9 * 18 + 4 + 1;
-                        int fy = screen.getGuiTop() + 30 + 1;
-                        targets.add(new Target<>() {
-                            @Override
-                            public Rect2i getArea() {
-                                return new Rect2i(fx, fy, 16, 16);
-                            }
+                        // Добавляем слоты жидкостей (виртуальные)
+                        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+                        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+                        int recipeRows = (activeRecipeSlots + 8) / 9;
+                        boolean horizontalFluids = activeFluidSlots > recipeRows;
 
-                            @Override
-                            public void accept(I ingredient) {
-                                if (ingredient instanceof FluidStack fluid) {
-                                    FluidStack copy = fluid.copy();
-                                    copy.setAmount(1000);
-                                    screen.getMenu().syncFluid(copy);
-                                } else if (ingredient instanceof ItemStack stack) {
-                                    net.minecraftforge.fluids.FluidUtil.getFluidContained(stack).ifPresent(fluid -> {
-                                        if (!fluid.isEmpty()) {
-                                            FluidStack copy = fluid.copy();
-                                            copy.setAmount(1000);
-                                            screen.getMenu().syncFluid(copy);
-                                        }
-                                    });
-                                }
+                        for (int i = 0; i < activeFluidSlots; i++) {
+                            int fx, fy;
+                            if (horizontalFluids) {
+                                int row = i / 9;
+                                int col = i % 9;
+                                fx = screen.getGuiLeft() + 7 + col * 18 + 1;
+                                fy = screen.getGuiTop() + 30 + (recipeRows + row) * 18 + 1;
+                            } else {
+                                fx = screen.getGuiLeft() + 8 + 9 * 18 + 4 + 1;
+                                fy = screen.getGuiTop() + 30 + i * 18 + 1;
                             }
-                        });
+                            
+                            final int fluidIndex = i;
+                            targets.add(new Target<>() {
+                                @Override
+                                public Rect2i getArea() {
+                                    return new Rect2i(fx, fy, 16, 16);
+                                }
+
+                                @Override
+                                public void accept(I ingredient) {
+                                    if (ingredient instanceof FluidStack fluid) {
+                                        FluidStack copy = fluid.copy();
+                                        copy.setAmount(1000);
+                                        screen.getMenu().syncFluid(fluidIndex, copy);
+                                    } else if (ingredient instanceof ItemStack stack) {
+                                        net.minecraftforge.fluids.FluidUtil.getFluidContained(stack).ifPresent(fluid -> {
+                                            if (!fluid.isEmpty()) {
+                                                FluidStack copy = fluid.copy();
+                                                copy.setAmount(1000);
+                                                screen.getMenu().syncFluid(fluidIndex, copy);
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                        }
 
                         return targets;
                     }

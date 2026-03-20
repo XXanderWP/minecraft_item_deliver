@@ -58,6 +58,8 @@ public class ModConfig {
         public final ForgeConfigSpec.IntValue autoSyncInterval;
         
         public final ForgeConfigSpec.IntValue searchRadius;
+        public final ForgeConfigSpec.IntValue recipeSlots;
+        public final ForgeConfigSpec.IntValue fluidRecipeSlots;
 
         public ServerConfig(ForgeConfigSpec.Builder builder) {
             builder.push("updates");
@@ -95,6 +97,16 @@ public class ModConfig {
                     .comment("Maximum search radius for Output Ports (in blocks).")
                     .translation("config.logisticsports.search_radius")
                     .defineInRange("searchRadius", 128, 1, 1024);
+
+            recipeSlots = builder
+                    .comment("Number of recipe slots in Access Port (4 to 18).")
+                    .translation("config.logisticsports.recipe_slots")
+                    .defineInRange("recipeSlots", 9, 4, 18);
+
+            fluidRecipeSlots = builder
+                    .comment("Number of fluid recipe slots in Access Port (1 to 9).")
+                    .translation("config.logisticsports.fluid_recipe_slots")
+                    .defineInRange("fluidRecipeSlots", 1, 1, 9);
 
             builder.pop();
         }
