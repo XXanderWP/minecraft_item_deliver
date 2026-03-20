@@ -1,6 +1,7 @@
 package com.logisticsports.client.jade;
 
 import com.logisticsports.blockentity.AccessPortBlockEntity;
+import com.logisticsports.client.Convert;
 import com.logisticsports.network.ModNetwork;
 import com.logisticsports.network.PacketRefreshAvailableCache;
 import net.minecraft.core.BlockPos;
@@ -55,14 +56,14 @@ public class AccessPortJadeProvider implements IBlockComponentProvider {
                 int needed = stack.getCount();
                 String color = avail >= needed ? "§a" : "§c";
                 
-                tooltip.add(Component.literal("  ").append(stack.getHoverName()).append(Component.literal(" §fx" + needed + " " + color + "(" + avail + ")")));
+                tooltip.add(Component.literal("  ").append(stack.getHoverName()).append(Component.literal(" §f" + Convert.ShowAmountString(needed, false) + " " + color + "(" + Convert.ShowAmountString(avail, true) + ")")));
             }
             if (!be.fluidRecipe.isEmpty()) {
                 int avail = be.getAvailableFluidCount(be.fluidRecipe);
                 int needed = be.fluidRecipe.getAmount();
                 String color = avail >= needed ? "§a" : "§c";
 
-                tooltip.add(Component.literal("  ").append(be.fluidRecipe.getDisplayName()).append(Component.literal(" §fx" + needed + "mB " + color + "(" + avail + "mB)")));
+                tooltip.add(Component.literal("  ").append(be.fluidRecipe.getDisplayName()).append(Component.literal(" §f" + Convert.ShowAmountString(needed, false, true) + " " + color + "(" + Convert.ShowAmountString(avail, true, true) + ")")));
             }
         }
     }

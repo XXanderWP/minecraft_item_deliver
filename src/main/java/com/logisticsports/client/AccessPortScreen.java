@@ -154,15 +154,15 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
                 g.renderItem(stack, x + 5, listY + 2);
 
                 Component name = stack.getHoverName();
-                g.drawString(font, name, x + 26, listY + 6, 0xFF222222, false);
+                g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
 
                 // Нужно x количество
                 int needed = stack.getCount();
                 // Доступно — запрашиваем с сервера через данные блока
                 int avail = menu.blockEntity.getAvailableCount(stack);
                 int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-                g.drawString(font, "x" + needed + " (" + avail + ")",
-                        x + BG_WIDTH - 55, listY + 6, availColor, false);
+                g.drawString(font, Convert.ShowAmountString(needed, false) + " (" + Convert.ShowAmountString(avail, true) + ")",
+                        x + 26, listY + 11, availColor, false);
 
                 listY += 21;
             }
@@ -177,15 +177,15 @@ public class AccessPortScreen extends AbstractContainerScreen<AccessPortMenu> {
             renderFluid(g, fluid, x + 5, listY + 2);
 
             Component name = fluid.getDisplayName();
-            g.drawString(font, name, x + 26, listY + 6, 0xFF222222, false);
+            g.drawString(font, name, x + 26, listY + 1, 0xFF222222, false);
 
             // Нужно x количество (mB)
             int needed = fluid.getAmount() * batches;
             // Доступно — запрашиваем с сервера через данные блока
             int avail = menu.blockEntity.getAvailableFluidCount(fluid);
             int availColor = avail >= needed ? 0xFF22AA22 : 0xFFAA2222;
-            g.drawString(font, needed + "mB (" + avail + ")",
-                    x + BG_WIDTH - 75, listY + 6, availColor, false);
+            g.drawString(font, Convert.ShowAmountString(needed, false, true) + " (" + Convert.ShowAmountString(avail, true, true) + ")",
+                    x + 26, listY + 11, availColor, false);
 
             listY += 21;
         }
