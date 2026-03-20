@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 import com.logisticsports.config.ModConfig;
 import com.logisticsports.menu.AccessPortMenu;
 import com.logisticsports.blockentity.OutputPortBlockEntity;
+import com.logisticsports.world.OutputPortSavedData;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.capabilities.Capability;
@@ -189,19 +190,36 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
     private List<OutputPortBlockEntity> findOutputPorts() {
         List<OutputPortBlockEntity> result = new ArrayList<>();
-        if (level == null) return result;
+        if (level == null || level.isClientSide) return result;
 
-        // Сканируем блоки в радиусе из конфига
+        OutputPortSavedData data = OutputPortSavedData.get(level);
+        Set<BlockPos> positions = data.getPositions();
+        List<BlockPos> toRemove = new ArrayList<>();
+
         BlockPos center = worldPosition;
-        int radius = ModConfig.SERVER.searchRadius.get();
-        for (BlockPos pos : BlockPos.betweenClosed(
-                center.offset(-radius, -radius, -radius),
-                center.offset(radius, radius, radius))) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof OutputPortBlockEntity port && port.frequency == this.frequency) {
-                result.add(port);
+        int radiusSq = ModConfig.SERVER.searchRadius.get();
+        radiusSq *= radiusSq;
+
+        for (BlockPos pos : positions) {
+            // Проверка радиуса (сферический поиск эффективнее и логичнее для списка)
+            if (pos.distSqr(center) <= radiusSq) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof OutputPortBlockEntity port) {
+                    if (port.frequency == this.frequency) {
+                        result.add(port);
+                    }
+                } else {
+                    // Блока больше нет, помечаем на удаление
+                    toRemove.add(pos);
+                }
             }
         }
+
+        // Очистка несуществующих портов
+        for (BlockPos pos : toRemove) {
+            data.removePort(pos);
+        }
+
         return result;
     }
 

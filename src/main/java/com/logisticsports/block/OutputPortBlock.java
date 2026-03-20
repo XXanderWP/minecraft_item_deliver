@@ -3,6 +3,7 @@ package com.logisticsports.block;
 import com.logisticsports.blockentity.OutputPortBlockEntity;
 import com.logisticsports.interract.InteractionHandler;
 import com.logisticsports.registry.ModRegistry;
+import com.logisticsports.world.OutputPortSavedData;
 import com.simibubi.create.AllSoundEvents;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -11,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -58,6 +60,10 @@ public class OutputPortBlock extends BaseEntityBlock {
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
         if (level.isClientSide) return InteractionResult.SUCCESS;
+
+        // При взаимодействии проверяем регистрацию в данных мира
+        OutputPortSavedData.get(level).addPort(pos);
+
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof OutputPortBlockEntity port) {
             port.giveAllToPlayer(player);
@@ -69,6 +75,9 @@ public class OutputPortBlock extends BaseEntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
+            if (!level.isClientSide) {
+                OutputPortSavedData.get(level).removePort(pos);
+            }
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof OutputPortBlockEntity port) {
                 for (int i = 0; i < port.getInventory().getSlots(); i++) {
@@ -76,6 +85,14 @@ public class OutputPortBlock extends BaseEntityBlock {
                 }
             }
             super.onRemove(state, level, pos, newState, isMoving);
+        }
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide) {
+            OutputPortSavedData.get(level).addPort(pos);
         }
     }
 
