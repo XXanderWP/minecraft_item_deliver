@@ -67,12 +67,9 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
         // 2. Выталкиваем предметы в соседние блоки (всенаправленно)
         for (int i = 0; i < be.inventory.getSlots(); i++) {
             ItemStack stack = be.inventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
+            if (stack.isEmpty() || stack.getItem() instanceof TransportReservoirItem) continue;
 
-            // Если это резервуар - его мы уже обработали или удалили выше
-            if (stack.getItem() instanceof TransportReservoirItem) {
-                continue;
-            }
+            // Пытаемся вытолкнуть все предметы (кроме резервуаров, так как они уничтожаются после распаковки)
 
             for (Direction dir : Direction.values()) {
                 if (dir == be.lastInsertSide[i]) continue;
@@ -143,7 +140,7 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                                 neighbor.load(blockTag);
                                 neighbor.setChanged();
                                 level.sendBlockUpdated(neighborPos, level.getBlockState(neighborPos), level.getBlockState(neighborPos), 3);
-                                be.inventory.setStackInSlot(i, ItemStack.EMPTY);
+                                be.inventory.extractItem(i, 1, false);
                                 be.setChanged();
                                 break;
                             }
@@ -153,12 +150,21 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
                     var cap = neighbor.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
                     if (cap.isPresent()) {
                         IItemHandler handler = cap.orElse(null);
-                        ItemStack remainder = net.minecraftforge.items.ItemHandlerHelper.insertItem(handler, stack, true);
-                        if (remainder.getCount() < stack.getCount()) {
-                            int toExtract = stack.getCount() - remainder.getCount();
+                        ItemStack toInsert = stack.copy();
+                        toInsert.setCount(stack.getCount()); // redundant but safe
+                        ItemStack remainder = net.minecraftforge.items.ItemHandlerHelper.insertItem(handler, toInsert, true);
+                        if (remainder.getCount() < toInsert.getCount()) {
+                            int toExtract = toInsert.getCount() - remainder.getCount();
                             ItemStack extracted = be.inventory.extractItem(i, toExtract, false);
-                            net.minecraftforge.items.ItemHandlerHelper.insertItem(handler, extracted, false);
-                            break;
+                            if (!extracted.isEmpty()) {
+                                ItemStack finalRemainder = net.minecraftforge.items.ItemHandlerHelper.insertItem(handler, extracted, false);
+                                if (!finalRemainder.isEmpty()) {
+                                    // Если по какой-то причине предмет не влез (несоответствие симуляции и реальности),
+                                    // возвращаем его обратно в инвентарь распаковщика
+                                    net.minecraftforge.items.ItemHandlerHelper.insertItem(be.inventory, finalRemainder, false);
+                                }
+                                break;
+                            }
                         }
                     }
                 }
