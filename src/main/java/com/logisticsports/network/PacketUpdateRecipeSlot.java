@@ -1,5 +1,6 @@
 package com.logisticsports.network;
 
+import com.logisticsports.blockentity.AccessPortBlockEntity;
 import com.logisticsports.menu.AccessPortMenu;
 import com.logisticsports.menu.AccessPortSettingsMenu;
 import net.minecraft.network.FriendlyByteBuf;
@@ -33,9 +34,10 @@ public class PacketUpdateRecipeSlot {
             ServerPlayer player = ctx.get().getSender();
             if (player == null) return;
             if (player.containerMenu instanceof AccessPortSettingsMenu menu) {
-                if (msg.slot < 9) {
+                int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+                if (msg.slot < activeRecipeSlots) {
                     menu.blockEntity.recipe.set(msg.slot, msg.stack);
-                } else if (msg.slot == 9) {
+                } else if (msg.slot == activeRecipeSlots) {
                     menu.blockEntity.indicator = msg.stack;
                 }
                 menu.blockEntity.setChanged();

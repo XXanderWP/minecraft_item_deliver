@@ -570,7 +570,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
-        ContainerHelper.saveAllItems(tag, recipe);
+        ContainerHelper.saveAllItems(tag, recipe, true);
 
         CompoundTag fluidsTag = new CompoundTag();
         ListTag list = new ListTag();
@@ -607,9 +607,12 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         // Миграция со старого формата fluidRecipe
         if (tag.contains("fluidRecipe")) {
-            FluidStack oldFluid = FluidStack.loadFluidStackFromNBT(tag.getCompound("fluidRecipe"));
-            if (!oldFluid.isEmpty()) {
-                fluidsRecipe.set(0, oldFluid);
+            CompoundTag oldFluidTag = tag.getCompound("fluidRecipe");
+            if (!oldFluidTag.isEmpty()) {
+                FluidStack oldFluid = FluidStack.loadFluidStackFromNBT(oldFluidTag);
+                if (!oldFluid.isEmpty()) {
+                    fluidsRecipe.set(0, oldFluid);
+                }
             }
         }
 

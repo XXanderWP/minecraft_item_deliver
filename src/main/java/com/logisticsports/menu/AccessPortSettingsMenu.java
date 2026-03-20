@@ -136,6 +136,17 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
                 // ПКМ — убираем предмет
                 slot.set(ItemStack.EMPTY);
                 syncSlot(slotId, ItemStack.EMPTY);
+            } else if (button == 2) {
+                // СКМ - установить стак (64 или макс)
+                if (!current.isEmpty()) {
+                    int max = current.getMaxStackSize();
+                    if (current.getCount() != max) {
+                        ItemStack updated = current.copy();
+                        updated.setCount(max);
+                        slot.set(updated);
+                        syncSlot(slotId, updated);
+                    }
+                }
             }
             return;
         }
