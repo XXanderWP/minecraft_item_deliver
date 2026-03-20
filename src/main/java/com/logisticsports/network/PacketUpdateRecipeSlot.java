@@ -39,6 +39,7 @@ public class PacketUpdateRecipeSlot {
                     menu.blockEntity.indicator = msg.stack;
                 }
                 menu.blockEntity.setChanged();
+                player.level().sendBlockUpdated(menu.blockEntity.getBlockPos(), menu.blockEntity.getBlockState(), menu.blockEntity.getBlockState(), 3);
             }
         });
         ctx.get().setPacketHandled(true);

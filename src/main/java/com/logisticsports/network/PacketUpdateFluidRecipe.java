@@ -30,6 +30,7 @@ public class PacketUpdateFluidRecipe {
             if (player.containerMenu instanceof AccessPortSettingsMenu menu) {
                 menu.blockEntity.fluidRecipe = msg.fluid;
                 menu.blockEntity.setChanged();
+                player.level().sendBlockUpdated(menu.blockEntity.getBlockPos(), menu.blockEntity.getBlockState(), menu.blockEntity.getBlockState(), 3);
             }
         });
         ctx.get().setPacketHandled(true);

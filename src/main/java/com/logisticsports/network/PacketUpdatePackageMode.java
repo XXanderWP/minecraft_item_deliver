@@ -35,6 +35,7 @@ public class PacketUpdatePackageMode {
             if (be instanceof AccessPortBlockEntity port) {
                 port.packageMode = msg.packageMode;
                 port.setChanged();
+                player.level().sendBlockUpdated(msg.pos, be.getBlockState(), be.getBlockState(), 3);
             }
         });
         ctx.get().setPacketHandled(true);

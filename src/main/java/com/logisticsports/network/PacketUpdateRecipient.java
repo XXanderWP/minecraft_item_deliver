@@ -35,6 +35,7 @@ public class PacketUpdateRecipient {
             if (be instanceof AccessPortBlockEntity port) {
                 port.recipient = msg.recipient;
                 port.setChanged();
+                player.level().sendBlockUpdated(msg.pos, be.getBlockState(), be.getBlockState(), 3);
             }
         });
         ctx.get().setPacketHandled(true);

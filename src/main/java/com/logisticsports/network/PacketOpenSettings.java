@@ -108,6 +108,7 @@ public class PacketOpenSettings {
                 }, buf -> {
                     buf.writeBlockPos(msg.pos);
                     buf.writeCollection(recipients, FriendlyByteBuf::writeUtf);
+                    buf.writeNbt(port.getUpdateTag());
                 });
             }
         });

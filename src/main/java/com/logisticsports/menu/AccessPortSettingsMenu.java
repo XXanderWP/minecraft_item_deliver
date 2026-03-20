@@ -182,8 +182,12 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
     public static AccessPortSettingsMenu create(int containerId, Inventory playerInventory, FriendlyByteBuf buf) {
         BlockPos pos = buf.readBlockPos();
         List<String> recipients = buf.readCollection(ArrayList::new, FriendlyByteBuf::readUtf);
+        net.minecraft.nbt.CompoundTag tag = buf.readNbt();
         BlockEntity be = playerInventory.player.level().getBlockEntity(pos);
         if (be instanceof AccessPortBlockEntity port) {
+            if (tag != null) {
+                port.load(tag);
+            }
             AccessPortSettingsMenu menu = new AccessPortSettingsMenu(containerId, playerInventory, port);
             menu.availableRecipients = recipients;
             return menu;
