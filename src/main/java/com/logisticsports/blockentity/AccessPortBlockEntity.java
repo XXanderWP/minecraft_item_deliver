@@ -208,6 +208,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     private Map<ItemStack, Integer> scanAvailable(List<OutputPortBlockEntity> ports) {
         Map<String, int[]> counts = new LinkedHashMap<>();
         Map<String, ItemStack> stackRefs = new LinkedHashMap<>();
+        Set<IItemHandler> scannedHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (OutputPortBlockEntity port : ports) {
             // Сканируем хранилища рядом с портом
@@ -215,11 +216,14 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 BlockPos neighbor = port.getBlockPos().relative(dir);
                 if (level == null) continue;
                 BlockEntity neighbor_be = level.getBlockEntity(neighbor);
-                if (neighbor_be == null) continue;
+                if (neighbor_be == null || neighbor_be instanceof OutputPortBlockEntity) continue;
+
                 var cap = neighbor_be.getCapability(
                         net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER,
                         dir.getOpposite());
                 cap.ifPresent(handler -> {
+                    if (!scannedHandlers.add(handler)) return;
+
                     for (int i = 0; i < handler.getSlots(); i++) {
                         ItemStack s = handler.getStackInSlot(i);
                         if (s.isEmpty()) continue;
@@ -251,15 +255,19 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     private Map<FluidStack, Integer> scanAvailableFluids(List<OutputPortBlockEntity> ports) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         Map<String, FluidStack> fluidRefs = new LinkedHashMap<>();
+        Set<net.minecraftforge.fluids.capability.IFluidHandler> scannedHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (OutputPortBlockEntity port : ports) {
             for (Direction dir : Direction.values()) {
                 BlockPos neighbor = port.getBlockPos().relative(dir);
                 if (level == null) continue;
                 BlockEntity neighbor_be = level.getBlockEntity(neighbor);
-                if (neighbor_be == null) continue;
+                if (neighbor_be == null || neighbor_be instanceof OutputPortBlockEntity) continue;
+
                 var cap = neighbor_be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
                 cap.ifPresent(handler -> {
+                    if (!scannedHandlers.add(handler)) return;
+
                     for (int i = 0; i < handler.getTanks(); i++) {
                         FluidStack s = handler.getFluidInTank(i);
                         if (s.isEmpty()) continue;
@@ -319,18 +327,19 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         
         int remainingFluid = neededFluid.getAmount();
         Map<OutputPortBlockEntity, List<ItemStack>> portToReservoirs = new HashMap<>();
-
         if (remainingFluid > 0) {
             for (OutputPortBlockEntity port : ports) {
                 if (remainingFluid <= 0) break;
+                Set<net.minecraftforge.fluids.capability.IFluidHandler> usedFluidHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
                 for (Direction dir : Direction.values()) {
                     if (remainingFluid <= 0) break;
                     BlockPos neighbor = port.getBlockPos().relative(dir);
                     BlockEntity be = level.getBlockEntity(neighbor);
-                    if (be == null) continue;
+                    if (be == null || be instanceof OutputPortBlockEntity) continue;
                     var cap = be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
                     if (!cap.isPresent()) continue;
                     var handler = cap.orElse(null);
+                    if (handler == null || !usedFluidHandlers.add(handler)) continue;
                     
                     while (remainingFluid > 0) {
                         FluidStack toDrain = neededFluid.copy();
@@ -357,6 +366,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
         boolean circuitDelivered = gtcCircuitStack.isEmpty();
 
         for (OutputPortBlockEntity port : ports) {
+            Set<IItemHandler> usedItemHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
             List<ItemStack> toDeliver = new ArrayList<>();
             // Сначала предметы
             for (ItemStack remainingNeed : globalRemainingItems) {
@@ -367,10 +377,12 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                     if (stillNeeded <= 0) break;
                     BlockPos neighbor = port.getBlockPos().relative(dir);
                     BlockEntity be = level.getBlockEntity(neighbor);
-                    if (be == null) continue;
+                    if (be == null || be instanceof OutputPortBlockEntity) continue;
                     var cap = be.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
                     if (!cap.isPresent()) continue;
                     var handler = cap.orElse(null);
+                    if (handler == null || !usedItemHandlers.add(handler)) continue;
+
                     for (int i = 0; i < handler.getSlots() && stillNeeded > 0; i++) {
                         ItemStack s = handler.getStackInSlot(i);
                         if (s.isEmpty() || !ItemStack.isSameItemSameTags(s, remainingNeed)) continue;
@@ -626,21 +638,22 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         availableCache.clear();
         List<OutputPortBlockEntity> ports = findOutputPorts();
+        Set<IItemHandler> scannedItemHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<net.minecraftforge.fluids.capability.IFluidHandler> scannedFluidHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (OutputPortBlockEntity port : ports) {
             for (Direction dir : Direction.values()) {
                 BlockPos neighbor = port.getBlockPos().relative(dir);
                 BlockEntity be = level.getBlockEntity(neighbor);
-                if (be == null) continue;
-
-                // Пропускаем сам порт выдачи
-                if (be instanceof OutputPortBlockEntity) continue;
+                if (be == null || be instanceof OutputPortBlockEntity) continue;
 
                 var itemCap = be.getCapability(
                         net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER,
                         dir.getOpposite());
 
                 itemCap.ifPresent(handler -> {
+                    if (!scannedItemHandlers.add(handler)) return;
+
                     for (int i = 0; i < handler.getSlots(); i++) {
                         ItemStack s = handler.getStackInSlot(i);
                         if (s.isEmpty()) continue;
@@ -652,6 +665,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
                 var fluidCap = be.getCapability(ForgeCapabilities.FLUID_HANDLER, dir.getOpposite());
                 fluidCap.ifPresent(handler -> {
+                    if (!scannedFluidHandlers.add(handler)) return;
+
                     for (int i = 0; i < handler.getTanks(); i++) {
                         FluidStack s = handler.getFluidInTank(i);
                         if (s.isEmpty()) continue;
