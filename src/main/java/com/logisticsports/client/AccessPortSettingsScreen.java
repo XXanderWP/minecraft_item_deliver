@@ -27,6 +27,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     private Button packageModeButton;
     private final List<String> filteredSuggestions = new ArrayList<>();
     private boolean showSuggestions = false;
+    private int scrollOffset = 0;
+    private static final int SUGGESTIONS_COUNT = 10;
 
     public AccessPortSettingsScreen(AccessPortSettingsMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -114,6 +116,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                 filteredSuggestions.add(s);
             }
         }
+        scrollOffset = 0;
         System.out.println("[DEBUG_LOG] Updated suggestions for '" + input + "'. Found: " + filteredSuggestions.size());
     }
 
@@ -135,6 +138,18 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (showSuggestions && !filteredSuggestions.isEmpty()) {
+            int x = leftPos + 8;
+            int y = topPos + 125;
+            int width = 150;
+            int height = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT) * 12;
+            if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
+                int maxScroll = Math.max(0, filteredSuggestions.size() - SUGGESTIONS_COUNT);
+                scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset - (int) Math.signum(delta)));
+                return true;
+            }
+        }
+
         boolean shift = hasShiftDown();
         boolean ctrl = hasControlDown();
         int amount = 1;
@@ -181,9 +196,10 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         if (showSuggestions && !filteredSuggestions.isEmpty()) {
             int x = leftPos + 8;
             int y = topPos + 125;
-            for (int i = 0; i < filteredSuggestions.size(); i++) {
+            int maxShow = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT);
+            for (int i = 0; i < maxShow; i++) {
                 if (mouseX >= x && mouseX <= x + 150 && mouseY >= y + i * 12 && mouseY <= y + (i + 1) * 12) {
-                    recipientField.setValue(filteredSuggestions.get(i));
+                    recipientField.setValue(filteredSuggestions.get(i + scrollOffset));
                     showSuggestions = false;
                     return true;
                 }
@@ -323,22 +339,38 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
     @Override
     public void render(GuiGraphics g, int mx, int my, float partialTick) {
         super.render(g, mx, my, partialTick);
-        renderTooltip(g, mx, my);
 
         if (showSuggestions && !filteredSuggestions.isEmpty() && recipientField != null && recipientField.isVisible()) {
+            g.pose().pushPose();
+            // Поднимаем предложения над слотами (которые обычно 0-100), но под тултипы (которые на 400)
+            g.pose().translate(0, 0, 300);
             int x = leftPos + 8;
             int y = topPos + 125;
-            int maxShow = Math.min(filteredSuggestions.size(), 10);
+            int maxShow = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT);
             int height = maxShow * 12;
-            g.fill(x, y, x + 150, y + height, 0xDD000000);
+            int width = 150;
+            g.fill(x, y, x + width, y + height, 0xDD000000);
+            
+            // Скроллбар
+            if (filteredSuggestions.size() > SUGGESTIONS_COUNT) {
+                int scrollWidth = 2;
+                int scrollX = x + width - scrollWidth;
+                int scrollHeight = (int) (height * (double) SUGGESTIONS_COUNT / filteredSuggestions.size());
+                int scrollY = y + (int) ((height - scrollHeight) * (double) scrollOffset / (filteredSuggestions.size() - SUGGESTIONS_COUNT));
+                g.fill(scrollX, y, x + width, y + height, 0xFF444444);
+                g.fill(scrollX, scrollY, x + width, scrollY + scrollHeight, 0xFF888888);
+            }
+
             for (int i = 0; i < maxShow; i++) {
                 int color = 0xFFFFFFFF;
-                if (mx >= x && mx <= x + 150 && my >= y + i * 12 && my <= y + (i + 1) * 12) {
+                String suggestion = filteredSuggestions.get(i + scrollOffset);
+                if (mx >= x && mx <= x + width && my >= y + i * 12 && my <= y + (i + 1) * 12) {
                     color = 0xFFFFFFA0;
-                    g.fill(x, y + i * 12, x + 150, y + (i + 1) * 12, 0x44FFFFFF);
+                    g.fill(x, y + i * 12, x + width, y + (i + 1) * 12, 0x44FFFFFF);
                 }
-                g.drawString(font, filteredSuggestions.get(i), x + 2, y + 2 + i * 12, color);
+                g.drawString(font, suggestion, x + 2, y + 2 + i * 12, color);
             }
+            g.pose().popPose();
         }
 
         // Тултип для жидкости
@@ -353,6 +385,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
                 g.renderComponentTooltip(font, tooltip, mx, my);
             }
         }
+
+        renderTooltip(g, mx, my);
     }
 
     private void renderFluid(GuiGraphics g, FluidStack fluid, int x, int y) {
