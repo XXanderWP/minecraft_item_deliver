@@ -354,6 +354,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             globalRemainingItems.add(s.copy());
         }
 
+        boolean circuitDelivered = gtcCircuitStack.isEmpty();
+
         for (OutputPortBlockEntity port : ports) {
             List<ItemStack> toDeliver = new ArrayList<>();
             // Сначала предметы
@@ -391,27 +393,40 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
                 toDeliver.addAll(reservoirs);
             }
 
-            if (toDeliver.isEmpty() && gtcCircuitStack.isEmpty()) continue;
+            if (toDeliver.isEmpty()) continue;
+
+            // Если есть что выдавать в этом порту, добавляем схему
+            if (!circuitDelivered) {
+                toDeliver.add(gtcCircuitStack.copy());
+                circuitDelivered = true;
+            }
 
             if (packageMode) {
-                if (!gtcCircuitStack.isEmpty()) {
-                    toDeliver.add(gtcCircuitStack.copy());
-                    gtcCircuitStack = ItemStack.EMPTY; // Добавляем только в первую посылку
-                }
-                
                 ItemStack packageStack = com.simibubi.create.content.logistics.box.PackageItem.containing(toDeliver);
                 if (!effectiveRecipient.isBlank()) {
                     com.simibubi.create.content.logistics.box.PackageItem.addAddress(packageStack, effectiveRecipient);
                 }
-                port.startProcessingItem(packageStack, Direction.UP); // Временно UP, так как это из сундука "сверху" или "сбоку"
+                port.startProcessingItem(packageStack, Direction.UP); 
             } else {
-                if (!gtcCircuitStack.isEmpty()) {
-                    port.startProcessingItem(gtcCircuitStack.copy(), Direction.UP);
-                    gtcCircuitStack = ItemStack.EMPTY;
-                }
                 for (ItemStack s : toDeliver) {
                     port.startProcessingItem(s, Direction.UP);
                 }
+            }
+        }
+
+        // Если схема еще не выдана (например, заказ состоит ТОЛЬКО из схемы), выдаем ее первому порту
+        if (!circuitDelivered && !ports.isEmpty()) {
+            OutputPortBlockEntity firstPort = ports.get(0);
+            if (packageMode) {
+                List<ItemStack> toDeliver = new ArrayList<>();
+                toDeliver.add(gtcCircuitStack.copy());
+                ItemStack packageStack = com.simibubi.create.content.logistics.box.PackageItem.containing(toDeliver);
+                if (!effectiveRecipient.isBlank()) {
+                    com.simibubi.create.content.logistics.box.PackageItem.addAddress(packageStack, effectiveRecipient);
+                }
+                firstPort.startProcessingItem(packageStack, Direction.UP);
+            } else {
+                firstPort.startProcessingItem(gtcCircuitStack.copy(), Direction.UP);
             }
         }
     }
