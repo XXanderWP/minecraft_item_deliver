@@ -40,6 +40,8 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
     public ItemStack indicator = ItemStack.EMPTY;
     // Частота сети
     public int frequency = 0;
+    // Номер интегральной схемы GregTech (0-24)
+    public int gtcCircuit = 0;
     // Поведение при нехватке: true = только если всё есть, false = выдавать что есть
     public boolean requireAll = true;
     public long lastRefreshTime = 0;
@@ -138,6 +140,23 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
 
         // Перемещаем предметы и жидкости
         executeOrder(ports, needed, neededFluid, available, availableFluids, effectiveRecipient);
+        
+        // Генерируем интегральную схему GTCEu, если нужно
+        if (gtcCircuit > 0) {
+            ItemStack circuitStack = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("gtceu", "programmed_circuit")));
+            if (!circuitStack.isEmpty()) {
+                CompoundTag circuitTag = new CompoundTag();
+                circuitTag.putInt("Configuration", gtcCircuit);
+                circuitStack.setTag(circuitTag);
+                
+                // Отправляем в первый доступный порт (для простоты)
+                if (!ports.isEmpty()) {
+                    ports.get(0).startProcessingItem(circuitStack, Direction.UP);
+                }
+            }
+        }
+
         player.sendSystemMessage(Component.translatable("config.logisticsports.action.success_chat", Component.translatable("config.logisticsports.action.order_complete")));
         setStatus(1); // успех
     }
@@ -407,6 +426,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             tag.put("fluidRecipe", fluidRecipe.writeToNBT(new CompoundTag()));
         }
         tag.putInt("frequency", frequency);
+        tag.putInt("gtcCircuit", gtcCircuit);
         tag.putBoolean("requireAll", requireAll);
         tag.putBoolean("packageMode", packageMode);
         tag.putString("recipient", recipient);
@@ -427,6 +447,7 @@ public class AccessPortBlockEntity extends BlockEntity implements MenuProvider {
             fluidRecipe = FluidStack.EMPTY;
         }
         frequency = tag.getInt("frequency");
+        gtcCircuit = tag.getInt("gtcCircuit");
         requireAll = tag.getBoolean("requireAll");
         packageMode = tag.getBoolean("packageMode");
         recipient = tag.getString("recipient");

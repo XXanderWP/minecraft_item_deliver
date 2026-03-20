@@ -77,8 +77,79 @@ public class TransportUnpackerBlockEntity extends BlockEntity {
             for (Direction dir : Direction.values()) {
                 if (dir == be.lastInsertSide[i]) continue;
 
-                BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
+                BlockPos neighborPos = pos.relative(dir);
+                BlockEntity neighbor = level.getBlockEntity(neighborPos);
                 if (neighbor != null) {
+                    // GregTech special integration for programmed_circuit
+                    if (stack.getItem().getDescriptionId().contains("gtceu.programmed_circuit")) {
+                        CompoundTag stackTag = stack.getTag();
+                        if (stackTag != null && stackTag.contains("Configuration")) {
+                            String blockId = level.getBlockState(neighborPos).getBlock().getDescriptionId();
+                            if (blockId.contains("block.gtceu.")) {
+                                int configValue = stackTag.getInt("Configuration");
+                                CompoundTag blockTag = neighbor.saveWithFullMetadata();
+                                if (blockTag.contains("circuitInventory")) {
+                                    CompoundTag circuitInv = blockTag.getCompound("circuitInventory");
+                                    if (!circuitInv.contains("storage")) {
+                                        CompoundTag storage = new CompoundTag();
+                                        storage.putInt("Size", 1);
+                                        storage.put("Items", new net.minecraft.nbt.ListTag());
+                                        circuitInv.put("storage", storage);
+                                    }
+                                    CompoundTag storage = circuitInv.getCompound("storage");
+                                    if (storage.contains("Items")) {
+                                        net.minecraft.nbt.ListTag items = storage.getList("Items", 10);
+                                        boolean found = false;
+                                        for (int j = 0; j < items.size(); j++) {
+                                            CompoundTag itemTag = items.getCompound(j);
+                                            if (itemTag.getString("id").equals("gtceu:programmed_circuit")) {
+                                                CompoundTag tag = itemTag.getCompound("tag");
+                                                tag.putInt("Configuration", configValue);
+                                                itemTag.put("tag", tag);
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!found) {
+                                            CompoundTag newItem = new CompoundTag();
+                                            newItem.putByte("Count", (byte) 1);
+                                            newItem.putByte("Slot", (byte) 0);
+                                            newItem.putString("id", "gtceu:programmed_circuit");
+                                            CompoundTag tag = new CompoundTag();
+                                            tag.putInt("Configuration", configValue);
+                                            newItem.put("tag", tag);
+                                            items.add(newItem);
+                                        }
+                                    }
+                                } else {
+                                    // If block doesn't have circuitInventory, create it
+                                    CompoundTag circuitInv = new CompoundTag();
+                                    circuitInv.putByte("isDistinct", (byte) 0);
+                                    CompoundTag storage = new CompoundTag();
+                                    storage.putInt("Size", 1);
+                                    net.minecraft.nbt.ListTag items = new net.minecraft.nbt.ListTag();
+                                    CompoundTag newItem = new CompoundTag();
+                                    newItem.putByte("Count", (byte) 1);
+                                    newItem.putByte("Slot", (byte) 0);
+                                    newItem.putString("id", "gtceu:programmed_circuit");
+                                    CompoundTag tag = new CompoundTag();
+                                    tag.putInt("Configuration", configValue);
+                                    newItem.put("tag", tag);
+                                    items.add(newItem);
+                                    storage.put("Items", items);
+                                    circuitInv.put("storage", storage);
+                                    blockTag.put("circuitInventory", circuitInv);
+                                }
+                                neighbor.load(blockTag);
+                                neighbor.setChanged();
+                                level.sendBlockUpdated(neighborPos, level.getBlockState(neighborPos), level.getBlockState(neighborPos), 3);
+                                be.inventory.setStackInSlot(i, ItemStack.EMPTY);
+                                be.setChanged();
+                                break;
+                            }
+                        }
+                    }
+
                     var cap = neighbor.getCapability(ForgeCapabilities.ITEM_HANDLER, dir.getOpposite());
                     if (cap.isPresent()) {
                         IItemHandler handler = cap.orElse(null);

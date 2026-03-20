@@ -30,6 +30,10 @@ A Minecraft mod that introduces a flexible logistics system for item and fluid t
 - **Transport Reservoir**: A specialized item used to carry fluids between ports.
 - **Transport Unpacker**: A utility block that automatically drains fluids from Reservoirs into adjacent tanks and pushes items into neighboring inventories.
 
+### ⚙️ GregTech CEu Integration (Optional)
+- **Automatic Machine Configuration**: When a `gtceu:programmed_circuit` (Programmed Circuit) passes through the **Transport Unpacker** into a neighboring GregTech machine, it automatically sets the machine's configuration to the value stored in the circuit. The circuit item is consumed in the process.
+- **Circuit Generation**: In the **Access Port** settings, you can specify a **GT Circuit** number (0-24). When an order is placed, the system will automatically generate a Programmed Circuit with the correct configuration and send it through the output port along with the requested items. This simplifies the automation of complex GregTech production lines.
+
 ### 🛠 Mod Compatibility
 - **JEI (Just Enough Items)**: Drag items or fluids directly from JEI into the Access Port's ghost slots to set up recipes.
 - **JADE (Just Enough Details)**: Provides detailed tooltips showing the port's frequency, current recipe, and availability of required materials.
@@ -45,6 +49,7 @@ The mod is available in the following languages:
 - **Create Mod** (Mandatory)
 - **JEI** (Optional, recommended for recipe setup)
 - **JADE** (Optional, recommended for better information display)
+- **GregTech CEu Modern** (Optional, for advanced machine automation)
 
 ## Configuration
 The mod includes both client-side and server-side configurations:

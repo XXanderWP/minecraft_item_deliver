@@ -77,6 +77,13 @@ public class ModNetwork {
         );
 
         CHANNEL.registerMessage(id++,
+                PacketUpdateGTCCircuit.class,
+                PacketUpdateGTCCircuit::encode,
+                PacketUpdateGTCCircuit::decode,
+                PacketUpdateGTCCircuit::handle
+        );
+
+        CHANNEL.registerMessage(id++,
                 PacketUpdateFluidRecipe.class,
                 PacketUpdateFluidRecipe::encode,
                 PacketUpdateFluidRecipe::decode,

@@ -22,7 +22,9 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     private static final int BG_WIDTH = 200;
     private static final int BG_HEIGHT = 253;
+    private static final boolean GREG_DEBUG = !net.minecraftforge.fml.loading.FMLLoader.isProduction();
     private EditBox frequencyField;
+    private EditBox gtcCircuitField;
     private EditBox recipientField;
     private Button packageModeButton;
     private final List<String> filteredSuggestions = new ArrayList<>();
@@ -42,7 +44,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         System.out.println("[DEBUG_LOG] Initializing AccessPortSettingsScreen. Suggestions available: " + menu.availableRecipients.size() + " -> " + menu.availableRecipients);
 
         frequencyField = new EditBox(font,
-                leftPos + 65, topPos + 58,
+                leftPos + 40, topPos + 58,
                 50, 12, Component.literal("0"));
         frequencyField.setValue(String.valueOf(menu.blockEntity.frequency));
         frequencyField.setFilter(s -> s.matches("-?\\d*"));
@@ -55,6 +57,28 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             } catch (NumberFormatException ignored) {}
         });
         addRenderableWidget(frequencyField);
+
+        // GregTech интегральная схема
+        boolean isGregTechLoaded = net.minecraftforge.fml.ModList.get().isLoaded("gtceu");
+        if (GREG_DEBUG || isGregTechLoaded) {
+            gtcCircuitField = new EditBox(font,
+                    leftPos + 150, topPos + 58,
+                    40, 12, Component.literal("0"));
+            gtcCircuitField.setValue(String.valueOf(menu.blockEntity.gtcCircuit));
+            gtcCircuitField.setFilter(s -> s.matches("\\d*"));
+            gtcCircuitField.setResponder(val -> {
+                try {
+                    int circuit = val.isEmpty() ? 0 : Integer.parseInt(val);
+                    if (circuit > 24) circuit = 24;
+                    if (circuit < 0) circuit = 0;
+                    
+                    com.logisticsports.network.ModNetwork.CHANNEL.sendToServer(
+                            new com.logisticsports.network.PacketUpdateGTCCircuit(
+                                    menu.blockEntity.getBlockPos(), circuit));
+                } catch (NumberFormatException ignored) {}
+            });
+            addRenderableWidget(gtcCircuitField);
+        }
 
         // Кнопка назад
         addRenderableWidget(Button.builder(
@@ -306,6 +330,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
         // Упаковывать посылку
         g.drawString(font, Component.translatable("config.logisticsports.pack"), x + 8, y + 94, 0xFF222222, false);
+
+        // GregTech текст
+        if (gtcCircuitField != null && gtcCircuitField.isVisible()) {
+            g.drawString(font, Component.literal("GT Circuit:"), x + 95, y + 60, 0xFF222222, false);
+        }
 
         // Адрес получателя (только если packageMode)
         if (menu.blockEntity.packageMode) {
