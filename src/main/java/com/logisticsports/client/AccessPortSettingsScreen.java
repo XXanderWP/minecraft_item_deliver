@@ -195,9 +195,17 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+        int recipeRows = (activeRecipeSlots + 8) / 9;
+        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+        boolean horizontalFluids = activeFluidSlots > recipeRows;
+        int fluidRows = horizontalFluids ? (activeFluidSlots + 8) / 9 : 0;
+        int settingsStartY = 30 + (recipeRows + fluidRows) * 18 + 10;
+        int invTop = BG_HEIGHT - 18 * 4 - 8;
+
         if (showSuggestions && !filteredSuggestions.isEmpty()) {
             int x = leftPos + 8;
-            int y = (int) (topPos + 30 + (AccessPortBlockEntity.getRecipeSlots() + 8) / 9 * 18 + 10 + 77 - 10 - settingsScroll);
+            int y = (int) (topPos + settingsStartY + 77 - 10 - settingsScroll);
             int width = 150;
             int height = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT) * 12;
             if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
@@ -207,14 +215,11 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             }
         }
 
-        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
-        int recipeRows = (activeRecipeSlots + 8) / 9;
-        int invTop = BG_HEIGHT - 18 * 4 - 8;
-        int scrollableViewHeight = invTop - 12 - (30 + recipeRows * 18 + 10);
-        int totalContentHeight = 100; // Примерная высота настроек
+        int scrollableViewHeight = invTop - 12 - settingsStartY;
+        int totalContentHeight = 105; // Высота всех настроек с запасом
 
         if (mouseX >= leftPos + 4 && mouseX <= leftPos + BG_WIDTH - 4 && 
-            mouseY >= topPos + 30 + recipeRows * 18 + 10 && mouseY <= topPos + invTop - 12) {
+            mouseY >= topPos + settingsStartY && mouseY <= topPos + invTop - 12) {
             if (totalContentHeight > scrollableViewHeight) {
                 settingsScroll = Math.min(Math.max(settingsScroll - (float)delta * 10, 0), totalContentHeight - scrollableViewHeight);
                 updateWidgetPositions();
@@ -230,9 +235,6 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         else if (shift) amount = 10;
         
         int finalAmount = (delta > 0 ? 1 : -1) * amount;
-
-        int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
-        boolean horizontalFluids = activeFluidSlots > recipeRows;
 
         for (int i = 0; i < activeFluidSlots; i++) {
             int fx, fy;
@@ -481,7 +483,7 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         int settingsStartY = 30 + (recipeRows + fluidRows) * 18 + 10;
         int invTop = BG_HEIGHT - 18 * 4 - 8;
         int scrollableViewHeight = invTop - 12 - settingsStartY;
-        int totalContentHeight = 100;
+        int totalContentHeight = 105;
 
         g.enableScissor(x + 4, y + settingsStartY, x + BG_WIDTH - 4, y + invTop - 12);
         
@@ -554,7 +556,10 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
             g.pose().translate(0, 0, 300);
             int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
             int recipeRows = (activeRecipeSlots + 8) / 9;
-            int settingsStartY = 30 + recipeRows * 18 + 10;
+            int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
+            boolean horizontalFluids = activeFluidSlots > recipeRows;
+            int fluidRows = horizontalFluids ? (activeFluidSlots + 8) / 9 : 0;
+            int settingsStartY = 30 + (recipeRows + fluidRows) * 18 + 10;
             int x = leftPos + 8;
             int y = (int) (topPos + settingsStartY + 77 - 10 - settingsScroll);
             int maxShow = Math.min(filteredSuggestions.size(), SUGGESTIONS_COUNT);
