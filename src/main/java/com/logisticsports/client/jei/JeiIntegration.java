@@ -47,8 +47,9 @@ public class JeiIntegration implements IModPlugin {
                             return targets;
                         }
 
-                        // Добавляем все ghost слоты (0-9) как цели
-                        for (int i = 0; i < 10; i++) {
+                        // Добавляем все ghost слоты как цели
+                        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
+                        for (int i = 0; i < activeRecipeSlots + 1; i++) {
                             Slot slot = screen.getMenu().slots.get(i);
                             int slotX = screen.getGuiLeft() + slot.x;
                             int slotY = screen.getGuiTop() + slot.y;
@@ -80,7 +81,6 @@ public class JeiIntegration implements IModPlugin {
 
                         // Добавляем слоты жидкостей (виртуальные)
                         int activeFluidSlots = AccessPortBlockEntity.getFluidRecipeSlots();
-                        int activeRecipeSlots = AccessPortBlockEntity.getRecipeSlots();
                         int recipeRows = (activeRecipeSlots + 8) / 9;
                         boolean horizontalFluids = activeFluidSlots > recipeRows;
 
