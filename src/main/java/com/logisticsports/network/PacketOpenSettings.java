@@ -212,12 +212,12 @@ public class PacketOpenSettings {
             }
         }
 
-        System.out.println("[DEBUG_LOG] Processed line: " + plainText);
+//        System.out.println("[DEBUG_LOG] Processed line: " + plainText);
         if (plainText.startsWith("#") && plainText.length() > 1) {
             String suggestion = plainText.substring(1).trim();
             if (!suggestion.isEmpty() && !recipients.contains(suggestion)) {
                 recipients.add(suggestion);
-                System.out.println("[DEBUG_LOG] Extracted suggestion: " + suggestion);
+//                System.out.println("[DEBUG_LOG] Extracted suggestion: " + suggestion);
             }
         }
     }

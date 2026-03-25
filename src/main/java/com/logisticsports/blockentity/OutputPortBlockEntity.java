@@ -37,7 +37,6 @@ public class OutputPortBlockEntity extends BlockEntity {
 
     public int frequency = 0;
     public boolean packageMode = false;
-    public String recipient = "";
 
     // Обработка предметов
     public static class ProcessingItem {
@@ -224,7 +223,6 @@ public class OutputPortBlockEntity extends BlockEntity {
         tag.put("inventory", inventory.serializeNBT());
         tag.putInt("frequency", frequency);
         tag.putBoolean("packageMode", packageMode);
-        tag.putString("recipient", recipient);
 
         net.minecraft.nbt.ListTag itemsTag = new net.minecraft.nbt.ListTag();
         for (ProcessingItem pi : processingItems) {
@@ -243,7 +241,6 @@ public class OutputPortBlockEntity extends BlockEntity {
         inventory.deserializeNBT(tag.getCompound("inventory"));
         frequency = tag.getInt("frequency");
         packageMode = tag.getBoolean("packageMode");
-        recipient = tag.getString("recipient");
 
         processingItems.clear();
         net.minecraft.nbt.ListTag itemsTag = tag.getList("processingItems", 10);
