@@ -204,15 +204,18 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
         BlockPos pos = buf.readBlockPos();
         List<String> recipients = buf.readCollection(ArrayList::new, FriendlyByteBuf::readUtf);
         net.minecraft.nbt.CompoundTag tag = buf.readNbt();
+        System.out.println("[DEBUG_LOG] Client: Receiving PacketOpenSettings at " + pos + ". Recipients: " + recipients.size());
         BlockEntity be = playerInventory.player.level().getBlockEntity(pos);
         if (be instanceof AccessPortBlockEntity port) {
             if (tag != null) {
+                System.out.println("[DEBUG_LOG] Client: Loading port data from packet NBT");
                 port.load(tag);
             }
             AccessPortSettingsMenu menu = new AccessPortSettingsMenu(containerId, playerInventory, port);
             menu.availableRecipients = recipients;
             return menu;
         }
+        System.out.println("[DEBUG_LOG] Client ERROR: No AccessPortBlockEntity at " + pos);
         throw new IllegalStateException("No AccessPortSettingsMenu at " + pos);
     }
 

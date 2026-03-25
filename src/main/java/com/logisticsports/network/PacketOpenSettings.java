@@ -44,26 +44,33 @@ public class PacketOpenSettings {
                 int radius = 64;
                 
                 System.out.println("[DEBUG_LOG] Scanning for OutputPorts and clipboards in radius " + radius);
-                // 1. Scan for OutputPorts (existing logic)
-                for (BlockPos p : BlockPos.betweenClosed(
-                        msg.pos.offset(-radius, -radius, -radius),
-                        msg.pos.offset(radius, radius, radius))) {
-                    net.minecraft.world.level.block.entity.BlockEntity neighborBE = level.getBlockEntity(p);
-                    if (neighborBE instanceof com.logisticsports.blockentity.OutputPortBlockEntity outputPort) {
-                        if (outputPort.frequency == port.frequency && !outputPort.recipient.isEmpty()) {
-                            if (!recipients.contains(outputPort.recipient)) {
-                                recipients.add(outputPort.recipient);
-                                System.out.println("[DEBUG_LOG] Found OutputPort suggestion: " + outputPort.recipient);
+                // 1. Scan for OutputPorts (Optimized using SavedData)
+                com.logisticsports.world.OutputPortSavedData savedData = com.logisticsports.world.OutputPortSavedData.get(level);
+                for (BlockPos p : savedData.getPositions()) {
+                    if (p.distSqr(msg.pos) <= radius * radius) {
+                        net.minecraft.world.level.block.entity.BlockEntity neighborBE = level.getBlockEntity(p);
+                        if (neighborBE instanceof com.logisticsports.blockentity.OutputPortBlockEntity outputPort) {
+                            if (outputPort.frequency == port.frequency && !outputPort.recipient.isEmpty()) {
+                                if (!recipients.contains(outputPort.recipient)) {
+                                    recipients.add(outputPort.recipient);
+                                    System.out.println("[DEBUG_LOG] Found OutputPort suggestion: " + outputPort.recipient);
+                                }
                             }
                         }
                     }
-                    
-                    // 2. Scan for create:clipboard in world
+                }
+
+                // 2. Scan for create:clipboard in world (Reduced radius for performance)
+                int clipRadius = 8;
+                for (BlockPos p : BlockPos.betweenClosed(
+                        msg.pos.offset(-clipRadius, -clipRadius, -clipRadius),
+                        msg.pos.offset(clipRadius, clipRadius, clipRadius))) {
+                    net.minecraft.world.level.block.entity.BlockEntity neighborBE = level.getBlockEntity(p);
                     if (neighborBE != null) {
                         net.minecraft.resources.ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(neighborBE.getType());
                         if (id != null && id.toString().equals("create:clipboard")) {
                             System.out.println("[DEBUG_LOG] Found clipboard in world at " + p);
-                            extractClipboardSuggestions(neighborBE.saveWithFullMetadata(), recipients);
+                            extractClipboardSuggestions(neighborBE.saveWithFullMetadata(), recipients, 0);
                         }
                     }
                 }
@@ -78,10 +85,10 @@ public class PacketOpenSettings {
                         net.minecraft.nbt.CompoundTag tag = stack.getTag();
                         if (tag != null) {
                             if (tag.contains("BlockEntityTag")) {
-                                extractClipboardSuggestions(tag.getCompound("BlockEntityTag"), recipients);
+                                extractClipboardSuggestions(tag.getCompound("BlockEntityTag"), recipients, 0);
                             } else {
                                 // Try direct tag (some items store content directly)
-                                extractClipboardSuggestions(tag, recipients);
+                                extractClipboardSuggestions(tag, recipients, 0);
                             }
                         } else {
                             System.out.println("[DEBUG_LOG] Clipboard in inventory has no NBT tag");
@@ -108,22 +115,52 @@ public class PacketOpenSettings {
                 }, buf -> {
                     buf.writeBlockPos(msg.pos);
                     buf.writeCollection(recipients, FriendlyByteBuf::writeUtf);
-                    buf.writeNbt(port.getUpdateTag());
+                    // Передаем только нужные теги, чтобы избежать переполнения буфера пакета
+                    net.minecraft.nbt.CompoundTag updateTag = new net.minecraft.nbt.CompoundTag();
+                    updateTag.putInt("frequency", port.frequency);
+                    updateTag.putInt("gtcCircuit", port.gtcCircuit);
+                    updateTag.putBoolean("isMultiport", port.isMultiport);
+                    updateTag.putBoolean("requireAll", port.requireAll);
+                    updateTag.putBoolean("packageMode", port.packageMode);
+                    updateTag.putString("recipient", port.recipient);
+                    if (!port.indicator.isEmpty()) {
+                        net.minecraft.nbt.CompoundTag indicatorTag = new net.minecraft.nbt.CompoundTag();
+                        port.indicator.save(indicatorTag);
+                        updateTag.put("indicator", indicatorTag);
+                    }
+                    // Добавляем рецепты, но БЕЗ availableCache
+                    net.minecraft.world.ContainerHelper.saveAllItems(updateTag, port.recipe);
+                    
+                    net.minecraft.nbt.CompoundTag fluidsTag = new net.minecraft.nbt.CompoundTag();
+                    net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+                    for (int i = 0; i < port.fluidsRecipe.size(); i++) {
+                        net.minecraftforge.fluids.FluidStack fs = port.fluidsRecipe.get(i);
+                        if (!fs.isEmpty()) {
+                            net.minecraft.nbt.CompoundTag fTag = new net.minecraft.nbt.CompoundTag();
+                            fTag.putInt("Slot", i);
+                            fs.writeToNBT(fTag);
+                            list.add(fTag);
+                        }
+                    }
+                    fluidsTag.put("Fluids", list);
+                    updateTag.put("fluidsRecipe", fluidsTag);
+
+                    buf.writeNbt(updateTag);
                 });
             }
         });
         ctx.get().setPacketHandled(true);
     }
     
-    private static void extractClipboardSuggestions(net.minecraft.nbt.CompoundTag tag, List<String> recipients) {
-        if (tag == null) return;
-        System.out.println("[DEBUG_LOG] Full Clipboard Tag: " + tag.toString());
+    private static void extractClipboardSuggestions(net.minecraft.nbt.CompoundTag tag, List<String> recipients, int depth) {
+        if (tag == null || depth > 10) return;
+        // System.out.println("[DEBUG_LOG] Full Clipboard Tag (depth " + depth + "): " + tag.toString());
 
         // В новых версиях Create данные могут быть вложены в тег "Item"
         if (tag.contains("Item", 10)) {
             net.minecraft.nbt.CompoundTag itemTag = tag.getCompound("Item");
             if (itemTag.contains("tag", 10)) {
-                extractClipboardSuggestions(itemTag.getCompound("tag"), recipients);
+                extractClipboardSuggestions(itemTag.getCompound("tag"), recipients, depth + 1);
                 return;
             }
         }
