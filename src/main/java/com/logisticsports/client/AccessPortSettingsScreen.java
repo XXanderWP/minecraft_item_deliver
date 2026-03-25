@@ -448,8 +448,8 @@ public class AccessPortSettingsScreen extends AbstractContainerScreen<AccessPort
         }
 
         // Индикатор
-        g.drawString(font, Component.translatable("config.logisticsports.indicator"), x + BG_WIDTH - 80, y + 8, 0xFF222222, false);
-        int ix = x + BG_WIDTH - 26;
+        g.drawString(font, Component.translatable("config.logisticsports.indicator"), x + BG_WIDTH - 100, y + 8, 0xFF222222, false);
+        int ix = x + BG_WIDTH - 26 - 20;
         int iy = y + 3;
         g.fill(ix, iy, ix + 18, iy + 18, 0xFF888888);
         g.fill(ix + 1, iy + 1, ix + 17, iy + 17, 0xFFDDDD55);

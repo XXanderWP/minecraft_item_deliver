@@ -60,7 +60,7 @@ public class AccessPortSettingsMenu extends AbstractContainerMenu {
         }
 
         // Ghost слот индикатора
-        addSlot(new SlotItemHandler(indicatorHandler, 0, BG_WIDTH - 26 + 1, 3 + invOffsetY) {
+        addSlot(new SlotItemHandler(indicatorHandler, 0, BG_WIDTH - 46 + 1, 3 + invOffsetY) {
             @Override
             public boolean mayPickup(Player player) { return false; }
             @Override
