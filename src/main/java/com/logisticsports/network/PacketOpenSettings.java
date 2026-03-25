@@ -1,6 +1,7 @@
 package com.logisticsports.network;
 
 import com.logisticsports.blockentity.AccessPortBlockEntity;
+import com.logisticsports.config.ModConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,27 +42,27 @@ public class PacketOpenSettings {
             if (be instanceof AccessPortBlockEntity port) {
                 List<String> recipients = new java.util.ArrayList<>();
                 net.minecraft.world.level.Level level = player.level();
-                int radius = 64;
+                int radius = ModConfig.SERVER.clipboardSearchRadius.get();
                 
-                System.out.println("[DEBUG_LOG] Scanning for OutputPorts and clipboards in radius " + radius);
-                // 1. Scan for OutputPorts (Optimized using SavedData)
-                com.logisticsports.world.OutputPortSavedData savedData = com.logisticsports.world.OutputPortSavedData.get(level);
-                for (BlockPos p : savedData.getPositions()) {
-                    if (p.distSqr(msg.pos) <= radius * radius) {
-                        net.minecraft.world.level.block.entity.BlockEntity neighborBE = level.getBlockEntity(p);
-                        if (neighborBE instanceof com.logisticsports.blockentity.OutputPortBlockEntity outputPort) {
-                            if (outputPort.frequency == port.frequency && !outputPort.recipient.isEmpty()) {
-                                if (!recipients.contains(outputPort.recipient)) {
-                                    recipients.add(outputPort.recipient);
-                                    System.out.println("[DEBUG_LOG] Found OutputPort suggestion: " + outputPort.recipient);
-                                }
-                            }
-                        }
-                    }
-                }
+                System.out.println("[DEBUG_LOG] Scanning for Clipboards in radius " + radius);
+//                // 1. Scan for OutputPorts (Optimized using SavedData)
+//                com.logisticsports.world.OutputPortSavedData savedData = com.logisticsports.world.OutputPortSavedData.get(level);
+//                for (BlockPos p : savedData.getPositions()) {
+//                    if (p.distSqr(msg.pos) <= radius * radius) {
+//                        net.minecraft.world.level.block.entity.BlockEntity neighborBE = level.getBlockEntity(p);
+//                        if (neighborBE instanceof com.logisticsports.blockentity.OutputPortBlockEntity outputPort) {
+//                            if (outputPort.frequency == port.frequency && !outputPort.recipient.isEmpty()) {
+//                                if (!recipients.contains(outputPort.recipient)) {
+//                                    recipients.add(outputPort.recipient);
+//                                    System.out.println("[DEBUG_LOG] Found OutputPort suggestion: " + outputPort.recipient);
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
 
                 // 2. Scan for create:clipboard in world (Reduced radius for performance)
-                int clipRadius = 8;
+                int clipRadius = radius;
                 for (BlockPos p : BlockPos.betweenClosed(
                         msg.pos.offset(-clipRadius, -clipRadius, -clipRadius),
                         msg.pos.offset(clipRadius, clipRadius, clipRadius))) {

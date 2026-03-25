@@ -60,6 +60,7 @@ public class ModConfig {
         public final ForgeConfigSpec.IntValue searchRadius;
         public final ForgeConfigSpec.IntValue recipeSlots;
         public final ForgeConfigSpec.IntValue fluidRecipeSlots;
+        public final ForgeConfigSpec.IntValue clipboardSearchRadius;
 
         public ServerConfig(ForgeConfigSpec.Builder builder) {
             builder.push("updates");
@@ -97,6 +98,11 @@ public class ModConfig {
                     .comment("Maximum search radius for Output Ports (in blocks).")
                     .translation("config.logisticsports.search_radius")
                     .defineInRange("searchRadius", 128, 1, 1024);
+
+            clipboardSearchRadius = builder
+                    .comment("Maximum search radius for Create Clipboards (in blocks).")
+                    .translation("config.logisticsports.search_clipboard_radius")
+                    .defineInRange("searchRadius", 64, 1, 1024);
 
             recipeSlots = builder
                     .comment("Number of recipe slots in Access Port (4 to 18).")
